@@ -238,7 +238,10 @@ async function personMasks(canvas, W, H) {
       const base = new URL('../vendor/mediapipe/', import.meta.url).href;
       const { FilesetResolver, ImageSegmenter } = await import(base + 'vision_bundle.mjs');
       const fs = await FilesetResolver.forVisionTasks(base + 'wasm');
-      const mk = (delegate) => ImageSegmenter.createFromOptions(fs, { baseOptions: { modelAssetPath: base + 'models/selfie_multiclass_256x256.tflite', delegate },
+      // the 16 MB model is not in the repo: use a local copy if present, else Google's official download (Apache-2.0)
+      let model = base + 'models/selfie_multiclass_256x256.tflite';
+      try { const r = await fetch(model, { method: 'HEAD' }); if (!r.ok) throw 0; } catch { model = 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite'; }
+      const mk = (delegate) => ImageSegmenter.createFromOptions(fs, { baseOptions: { modelAssetPath: model, delegate },
         runningMode: 'IMAGE', outputConfidenceMasks: true, outputCategoryMask: false });
       try { return await mk('GPU'); } catch { return await mk('CPU'); }
     })();
