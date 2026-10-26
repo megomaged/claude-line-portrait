@@ -3,40 +3,81 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Line Portrait</title>
+<title>Line Studio</title>
 <link rel="icon" href="data:,">
-<script type="importmap">
-{ "imports": { "three": "./vendor/three/build/three.module.js", "three/addons/": "./vendor/three/jsm/" } }
-</script>
+<script type="importmap">{ "imports": { "three": "./vendor/three/build/three.module.js" } }</script>
 <style>
-  :root { --ink: #e8f1f4; --dim: #8fa3ad; --line: rgba(255,255,255,.12); --panel: rgba(8,12,18,.78); --acc: #7fe3d6; }
+  :root { --ink: #e8f1f4; --dim: #8fa3ad; --line: rgba(255,255,255,.12); --panel: rgba(8,12,18,.78); --acc: #7fe3d6; --tb: 104px; }
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font: 12px/1.4 ui-sans-serif, system-ui, -apple-system, sans-serif; color: var(--ink); }
-  canvas { display: block; }
-  #panel { position: fixed; top: 14px; right: 14px; width: 250px; max-height: calc(100% - 28px); overflow: auto; background: var(--panel); border: 1px solid var(--line);
-    border-radius: 12px; padding: 12px 14px; backdrop-filter: blur(10px); z-index: 2; }
-  #panel.hide { display: none; }
+  canvas { display: block; position: fixed; }
+  #stage { position: fixed; left: 0; top: 0; right: 0; bottom: var(--tb); }
+  #stage.checker { background: repeating-conic-gradient(#2a2d31 0 25%, #1c1e21 0 50%) 0 0 / 22px 22px; }
+  .panel { position: fixed; top: 14px; width: 250px; max-height: calc(100% - var(--tb) - 28px); overflow: auto; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 12px 14px; backdrop-filter: blur(10px); z-index: 2; box-sizing: border-box; }
+  #panel { right: 14px; width: 270px; } #shots { left: 14px; width: 270px; }
+  body.hide .panel { display: none; }
   h1 { font-size: 11px; letter-spacing: .18em; margin: 0 0 10px; color: var(--dim); font-weight: 600; }
-  .sec { margin: 10px 0 4px; font-size: 10px; letter-spacing: .14em; color: var(--dim); text-transform: uppercase; }
+  .sec { margin: 12px 0 4px; font-size: 10px; letter-spacing: .14em; color: var(--dim); text-transform: uppercase; }
   .row { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
-  .row label { flex: 0 0 74px; color: var(--dim); }
-  .row input[type=range] { flex: 1; accent-color: var(--acc); }
+  .row > label { flex: 0 0 74px; color: var(--dim); }
+  .row input[type=range] { flex: 1; min-width: 0; accent-color: var(--acc); }
   .seg { display: flex; flex-wrap: wrap; gap: 4px; }
-  .seg button, .btn { background: transparent; color: var(--ink); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; cursor: pointer; font: inherit; }
-  .seg button.on { background: var(--acc); color: #001; border-color: var(--acc); }
-  .btn { width: 100%; margin-top: 6px; }
+  .seg button, .btn, .mini { background: transparent; color: var(--ink); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; cursor: pointer; font: inherit; }
+  .seg button.on, .btn.on { background: var(--acc); color: #001; border-color: var(--acc); }
+  .btn { width: 100%; margin-top: 6px; } .btn:disabled { opacity: .45; cursor: default; }
+  .mini { padding: 2px 6px; border-radius: 5px; font-size: 11px; }
+  select, input[type=number], textarea { background: rgba(255,255,255,.06); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; font: inherit; padding: 3px 5px; }
+  select { flex: 1; min-width: 0; } input[type=number] { width: 58px; }
+  textarea { width: 100%; box-sizing: border-box; min-height: 52px; resize: vertical; font-size: 14px; }
   input[type=color] { width: 34px; height: 22px; border: 0; background: none; padding: 0; }
-  #hint { position: fixed; left: 14px; bottom: 12px; color: var(--dim); font-size: 11px; pointer-events: none; z-index: 2; }
-  @media (max-width: 600px) { #panel { width: auto; left: 16px; right: 16px; top: auto; bottom: 16px; max-height: 45%; } }
+  .val { flex: 0 0 30px; text-align: right; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .shot { display: flex; align-items: center; gap: 6px; padding: 5px 6px; border: 1px solid var(--line); border-radius: 8px; margin: 4px 0; cursor: pointer; }
+  .shot.on { border-color: var(--acc); background: rgba(127,227,214,.08); }
+  .shot b { flex: 0 0 16px; color: var(--acc); } .shot span { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .shot em { color: var(--dim); font-style: normal; font-variant-numeric: tabular-nums; }
+  .note { color: var(--dim); font-size: 11px; margin-top: 4px; word-break: break-word; }
+  code { font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; color: #cfe; background: rgba(255,255,255,.06); padding: 4px 6px; border-radius: 5px; display: block; margin-top: 4px; user-select: all; }
+  .group { border-left: 2px solid var(--line); padding-left: 8px; margin: 6px 0; }
+  #transport { position: fixed; left: 0; right: 0; bottom: 0; height: var(--tb); background: rgba(6,9,14,.92); border-top: 1px solid var(--line); z-index: 3; padding: 8px 14px; box-sizing: border-box; }
+  #tline1 { display: flex; align-items: center; gap: 10px; }
+  #play { width: 34px; height: 30px; font-size: 14px; }
+  #scrub { flex: 1; accent-color: var(--acc); }
+  #time { flex: 0 0 auto; font-variant-numeric: tabular-nums; color: var(--dim); min-width: 170px; text-align: right; }
+  #strip { position: relative; display: flex; height: 30px; margin-top: 8px; margin-left: 44px; margin-right: 180px; gap: 2px; }
+  #strip div.cell { position: relative; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; cursor: pointer; padding: 3px 6px; box-sizing: border-box; white-space: nowrap; text-overflow: ellipsis; color: var(--dim); }
+  #strip div.cell.on { border-color: var(--acc); color: var(--ink); }
+  #strip div.cell i { position: absolute; top: 0; bottom: 0; left: 0; background: rgba(127,227,214,.14); pointer-events: none; }
+  #strip div.cell u { position: absolute; top: 0; bottom: 0; right: 0; background: rgba(255,140,90,.14); pointer-events: none; text-decoration: none; }
+  #head { position: absolute; top: -4px; bottom: -4px; width: 2px; background: #fff; pointer-events: none; box-shadow: 0 0 6px #fff; }
+  #status { position: absolute; left: 58px; bottom: 6px; color: var(--dim); font-size: 11px; white-space: nowrap; overflow: hidden; right: 260px; text-overflow: ellipsis; }
+  #status.err { color: #ff8f7a; }
+  #drop { position: fixed; inset: 0; border: 3px dashed var(--acc); background: rgba(0,20,20,.45); z-index: 9; display: none; align-items: center; justify-content: center; font-size: 18px; letter-spacing: .1em; }
+  body.dragging #drop { display: flex; }
+  #hint { position: absolute; right: 14px; bottom: 6px; color: var(--dim); font-size: 11px; pointer-events: none; }
+  @media (max-width: 760px) { #shots { display: none; } }
 </style>
 </head>
 <body>
-<div id="panel">
-  <h1>LINE PORTRAIT</h1>
+<div id="stage"></div>
+<canvas id="c"></canvas>
+
+<!-- left: the timeline as a list + the selected shot -->
+<div class="panel" id="shots">
+  <h1>SHOTS</h1>
+  <div id="shotList"></div>
+  <div class="row"><button class="btn" id="addShot" style="margin-top:2px">+ Add shot</button></div>
+  <div id="shotEd"></div>
+</div>
+
+<!-- right: the look (v1 controls) + exports -->
+<div class="panel" id="panel">
+  <h1>LINE STUDIO</h1>
   <div class="sec">Colour</div>
   <div class="seg" id="preset">
-    <button data-v="white">White</button><button data-v="ember">Teal Fire</button><button data-v="rose">Lilac Rose</button><button data-v="gold">Gold</button><button data-v="neon">Neon</button>
+    <button data-v="white">White</button><button data-v="ember">Teal Fire</button><button data-v="rose">Lilac Rose</button><button data-v="gold">Gold</button>
+    <button data-v="neon">Neon</button><button data-v="ice">Ice</button><button data-v="claude">Claude</button>
   </div>
-  <div class="row"><label>Mode</label><div class="seg" id="mode"><button data-v="0">Mono</button><button data-v="1">Gradient</button><button data-v="2">By light</button></div></div>
+  <div class="seg" id="mode" style="margin-top:6px" title="colour mode"><button data-v="0">Mono</button><button data-v="1">Gradient</button><button data-v="2">By light</button></div>
   <div class="row"><label>Colours</label><input type="color" id="colA"><input type="color" id="colB"></div>
   <div class="sec">Lines</div>
   <div class="row"><label>Width</label><input type="range" id="width" min="0.3" max="3" step="0.05"></div>
@@ -45,344 +86,514 @@
   <div class="row"><label>Glow</label><input type="range" id="glow" min="0" max="2.5" step="0.05"></div>
   <div class="row"><label>Particles</label><input type="range" id="dots" min="0" max="2" step="0.05"></div>
   <div class="sec">Motion</div>
-  <div class="row"><label>Draw order</label><div class="seg" id="order"><button data-v="0">Top→down</button><button data-v="1">Random</button><button data-v="2">Centre out</button></div></div>
-  <div class="row"><label>Draw time</label><input type="range" id="dur" min="1" max="12" step="0.5"></div>
   <div class="row"><label>Pulses</label><input type="range" id="pulse" min="0" max="2" step="0.05"></div>
-  <div class="row"><label>Pulse speed</label><input type="range" id="pspeed" min="0.1" max="3" step="0.05"></div>
+  <div class="row"><label>Pulse speed</label><input type="range" id="pulseSpeed" min="0.1" max="3" step="0.05"></div>
   <div class="row"><label>Breathe</label><input type="range" id="breathe" min="0" max="1" step="0.05"></div>
   <div class="sec">Effects (mix any)</div>
-  <div class="seg" id="fx"><button data-v="0">Shimmer</button><button data-v="1">Scan</button><button data-v="2">Ripple</button><button data-v="3">Heartbeat</button><button data-v="4">Glitch</button><button data-v="5">Wind</button><button data-v="6">Dash flow</button><button data-v="7">Neon flicker</button><button data-v="8">Aurora</button><button data-v="9">Light sweep</button></div>
-  <div class="row"><label>Strength</label><input type="range" id="fxamt" min="0" max="2" step="0.05"></div>
-  <div class="row"><label>FX speed</label><input type="range" id="fxspeed" min="0.2" max="3" step="0.05"></div>
-  <div class="row"><label>Background</label><input type="color" id="bg"></div>
-  <div class="row"><label>BG lines</label><input type="range" id="bgl" min="0" max="2.5" step="0.05"></div>
+  <div class="seg" id="fx"><button data-v="shimmer">Shimmer</button><button data-v="scan">Scan</button><button data-v="ripple">Ripple</button><button data-v="heartbeat">Heartbeat</button><button data-v="glitch">Glitch</button><button data-v="wind">Wind</button><button data-v="dash">Dash flow</button><button data-v="flicker">Neon flicker</button><button data-v="aurora">Aurora</button><button data-v="sweep">Light sweep</button></div>
+  <div class="row"><label>Strength</label><input type="range" id="fxAmount" min="0" max="2" step="0.05"></div>
+  <div class="row"><label>FX speed</label><input type="range" id="fxSpeed" min="0.2" max="3" step="0.05"></div>
+  <div class="sec">Background</div>
+  <div class="row"><label>Colour</label><input type="color" id="bg"><button class="mini" id="transparent" title="preview and PNG with alpha (checkerboard)">Transparent</button></div>
+  <div class="row"><label>BG lines</label><input type="range" id="backdrop" min="0" max="2.5" step="0.05"></div>
   <div class="row"><label>Wave motion</label><input type="range" id="wave" min="0" max="3" step="0.05"></div>
   <div class="sec">Frame</div>
   <div class="seg" id="frame"><button data-v="9:16">9:16</button><button data-v="4:5">4:5</button><button data-v="1:1">1:1</button><button data-v="16:9">16:9</button></div>
-  <button class="btn" id="replay">Replay drawing</button>
-  <button class="btn" id="save">Save PNG</button>
+  <div class="row"><label>Line budget</label><input type="range" id="strokes" min="2000" max="16000" step="500"><span class="val" id="strokesV"></span></div>
+  <div class="row"><label>Particle count</label><input type="range" id="dotCount" min="0" max="12000" step="500"><span class="val" id="dotCountV"></span></div>
+  <button class="btn" id="replay">Replay</button>
+  <button class="btn" id="save">Save PNG (current frame)</button>
   <div class="sec">Video</div>
-  <div class="row"><label>Seconds</label><input type="number" id="vsec" min="1" max="60" step="1" value="8" style="width:60px"></div>
-  <button class="btn" id="rec">Download video</button>
-  <div id="recstat" style="color:var(--dim);margin-top:6px;min-height:16px"></div>
+  <div class="row"><label>Seconds</label><span id="vlen" style="color:var(--dim)"></span></div>
+  <div class="row"><label>Size</label><div class="seg" id="vscale"><button data-v="1">Full</button><button data-v="0.5">Half</button></div></div>
+  <button class="btn" id="mp4">Download MP4 (H.264)</button>
+  <button class="btn" id="webm">Download WebM (transparent)</button>
+  <div id="recstat" class="note" style="min-height:16px"></div>
+  <div class="sec">Scene</div>
+  <div class="row" style="gap:6px"><button class="btn" id="copyJson" style="margin:0">Copy scene.json</button><button class="btn" id="dlJson" style="margin:0">Download</button></div>
+  <div class="note">Save it in <b>claude-line-portrait-v2/studio/</b> (data/, assets/, fonts/ resolve from there), then:</div>
+  <code id="cmd"></code>
 </div>
-<div id="hint">H = hide panel</div>
+
+<div id="transport">
+  <div id="tline1"><button class="mini" id="play" title="Space">▶</button><input type="range" id="scrub" min="0" max="1" step="1" value="0"><span id="time"></span></div>
+  <div id="strip"><div id="head"></div></div>
+  <div id="status"></div>
+  <div id="hint">H = hide panels · Space = play · ←/→ = frame</div>
+</div>
+<div id="drop">Drop SVG / PNG / font / scene.json</div>
+<input type="file" id="fileIn" style="display:none">
+
 <script type="module">
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+// Line Studio: builds a scene spec (engine/scene.mjs) from the panels, previews it with the LineField engine and exports
+// it frame-exactly. Shapes are traced once here and handed to the engine as {shape}, so a re-load only re-samples.
+import { createEngine } from './engine/linefield.mjs';
+import { normalize, PRESETS, LOOK_DEFAULT, FX } from './engine/scene.mjs';
+import { EASE_ID } from './engine/ease.mjs';
+import { loadBaked, svgToShape, bitmapToShape, textToShape } from './engine/shapes.mjs';
 
-const Q = new URLSearchParams(location.search);
-const DATA = './data/' + (Q.get('d') || 'boy') + '/';
-const PRESETS = {   // teal fire = teal-white lines with orange where the light is strongest
-  white: { a: '#ffffff', b: '#cfe6ff', mode: 0, glow: 0.45, gain: 1.0, bg: '#000000' },
-  ember: { a: '#8FE3D8', b: '#FF6A1A', mode: 2, glow: 0.7, gain: 0.85, bg: '#03060c' },
-  rose:  { a: '#CEAFEB', b: '#E77395', mode: 2, glow: 0.7, gain: 0.85, bg: '#0b0712' },
-  gold:  { a: '#ffd9a0', b: '#ff8a3d', mode: 1, glow: 0.6, gain: 0.9, bg: '#050302' },
-  neon:  { a: '#00e5ff', b: '#ff2bd6', mode: 1, glow: 0.8, gain: 0.9, bg: '#02000a' },
-};
-const S = { preset: Q.get('preset') || 'white', mode: 0, a: '#ffffff', b: '#cfe6ff', width: 1.0, gain: 1.0, gamma: 1.0, glow: 0.55, dots: 1.0,
-  order: 0, dur: 5, pulse: 0, pspeed: 1, breathe: 0, bg: '#000000', bgl: 0.6, wave: 1, fx: (Q.get('fx') || '').split(',').filter(Boolean).map(Number), fxamt: 1, fxspeed: 1, relief: 0, spin: 0, frame: Q.get('frame') || '9:16' };
-Object.assign(S, PRESETS[S.preset]);
-const hash = (i) => { let x = Math.imul(i ^ 0x9e3779b9, 0x85ebca6b); x ^= x >>> 13; x = Math.imul(x, 0xc2b2ae35); x ^= x >>> 16; return (x >>> 0) / 4294967296; };
-const getBin = async (f) => (await fetch(DATA + f)).arrayBuffer();
-
-const meta = await (await fetch(DATA + 'meta.json')).json();
-const IW = meta.width, IH = meta.height;
-const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-document.body.prepend(renderer.domElement);
-const scene = new THREE.Scene();
-const FOV = 30, camera = new THREE.PerspectiveCamera(FOV, 9 / 16, 1, IH * 40);
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true; controls.dampingFactor = 0.08;
-controls.enabled = false;   // the portrait stays put: no mouse rotate, pan or zoom
-
-// ---------- depth (near = bright), sampled per vertex; the 3D shape is built in the shader so the Depth slider is live ----------
-const depthAt = await (async () => {
-  if (!meta.depth) return () => 0.5;   // optional depth map (flat portraits have none)
-  try {
-    const img = new Image(); img.src = DATA + 'depth.png'; await img.decode();
-    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
-    const g = c.getContext('2d'); g.drawImage(img, 0, 0); const d = g.getImageData(0, 0, c.width, c.height).data;
-    return (x, y) => { const u = Math.min(c.width - 1, Math.max(0, x / IW * c.width)), v = Math.min(c.height - 1, Math.max(0, y / IH * c.height));
-      const i0 = Math.floor(u), j0 = Math.floor(v), i1 = Math.min(c.width - 1, i0 + 1), j1 = Math.min(c.height - 1, j0 + 1), tx = u - i0, ty = v - j0;
-      const at = (i, j) => d[(j * c.width + i) * 4] / 255;
-      return (at(i0, j0) * (1 - tx) + at(i1, j0) * tx) * (1 - ty) + (at(i0, j1) * (1 - tx) + at(i1, j1) * tx) * ty; };
-  } catch { return () => 0.5; }   // no depth map → flat
-})();
-
-// ---------- polylines from the bake ----------
-const lb = await getBin('lines.bin'), ix = new Uint32Array(await getBin('lines_idx.bin'));
-const NV = meta.vertices, P = new Uint16Array(lb, 0, NV * 2), I8 = new Uint8Array(lb, NV * 4, NV), W8 = new Uint8Array(lb, NV * 5, NV);
-const polys = [];   // { x, y, i, w, d, f, bg }   d = depth 0..1, f = how much the vertex sits on the figure (1) vs the wave sheet (0)
-for (let p = 0; p + 1 < ix.length; p++) {
-  const a = ix[p], n = ix[p + 1] - a, q = { x: new Float32Array(n), y: new Float32Array(n), i: new Float32Array(n), w: new Float32Array(n), d: new Float32Array(n), f: new Float32Array(n).fill(1), bg: 0 };
-  for (let v = 0; v < n; v++) { q.x[v] = P[(a + v) * 2] / 4; q.y[v] = P[(a + v) * 2 + 1] / 4; q.i[v] = I8[a + v] / 255; q.w[v] = W8[a + v] / 16; q.d[v] = depthAt(q.x[v], q.y[v]); }
-  polys.push(q);
-}
-// the portrait lives inside a sheet of waves: it dissolves into them at its edges, and the waves run through it,
-// dimmer, bulging forward into the figure's own 3D shape — so from the side the figure is pushed out of the wave
-{
-  const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-  const fade = (x, y) => sm(0, 0.12 * IW, x) * sm(0, 0.12 * IW, IW - x) * sm(0, 0.06 * IH, y) * sm(0, 0.24 * IH, IH - y);
-  for (const q of polys) for (let v = 0; v < q.x.length; v++) { const f = fade(q.x[v], q.y[v]); q.i[v] *= f; q.f[v] = 0.35 + 0.65 * f; }
-  const C = 24, gw = Math.ceil(IW / C) + 1, gh = Math.ceil(IH / C) + 1;
-  const G = new Float32Array(gw * gh), cnt = new Float32Array(gw * gh);
-  for (const q of polys) for (let v = 0; v < q.x.length; v++) { const c = Math.floor(q.y[v] / C) * gw + Math.floor(q.x[v] / C); G[c] += q.i[v]; cnt[c]++; }
-  for (let c = 0; c < G.length; c++) G[c] = cnt[c] ? Math.min(1, G[c] / cnt[c] * 2.2 + 0.35) : 0;
-  for (let r = 0; r < 4; r++) { const g2 = G.slice(); for (let y = 1; y < gh - 1; y++) for (let x = 1; x < gw - 1; x++) { const c = y * gw + x; G[c] = (g2[c] * 4 + g2[c - 1] + g2[c + 1] + g2[c - gw] + g2[c + gw]) / 8; } }
-  const fig = (x, y) => { if (x < 0 || y < 0 || x >= IW || y >= IH) return 0; const fx = x / C, fy = y / C, i0 = Math.floor(fx), j0 = Math.floor(fy), tx = fx - i0, ty = fy - j0;
-    const g = (a, b) => G[Math.min(gh - 1, b) * gw + Math.min(gw - 1, a)];
-    return ((g(i0, j0) * (1 - tx) + g(i0 + 1, j0) * tx) * (1 - ty) + (g(i0, j0 + 1) * (1 - tx) + g(i0 + 1, j0 + 1) * tx) * ty) * fade(x, y); };
-  // each wave is y0 + a smooth function of (x, y0) that changes slowly with y0, so neighbours never cross or pile up
-  const wave = (x, y0) => 0.022 * IH * Math.sin(x * 0.0021 + y0 * 0.0019 + 0.6) + 0.012 * IH * Math.sin(x * 0.0047 - y0 * 0.0031 + 2.1) + 0.006 * IH * Math.sin(x * 0.0093 + y0 * 0.004);
-  const X0 = -IW * 1.7, X1 = IW * 2.7, Y0 = -IH * 0.3, Y1 = IH * 1.3, SP = IH / 115, STEP = 7;   // wide enough for a 16:9 frame
-  for (let k = 0, y0 = Y0; y0 < Y1; y0 += SP, k++) {
-    const gain = 0.16 + 0.12 * hash(k + 3), xs = [], ys = [], is = [], ds = [], fs = [];
-    for (let x = X0; x < X1; x += STEP) { const y0w = y0 + wave(x, y0), f = Math.min(1, fig(x, y0w) * 1.3), y = y0w - 0.018 * IH * f; xs.push(x); ys.push(y);   // the figure lifts the waves that run through it
-      is.push(gain * (1 - 0.8 * f)); ds.push(0.5); fs.push(0); }
-    polys.push({ x: Float32Array.from(xs), y: Float32Array.from(ys), i: Float32Array.from(is), w: new Float32Array(xs.length).fill(0.8), d: Float32Array.from(ds), f: Float32Array.from(fs), bg: 1 });
-  }
-}
-
-// ---------- instanced segments: one geometry for the figure (turns in 3D), one for the wave backdrop (stays facing the camera) ----------
-const cx = IW / 2, cy = IH * 0.42, R = Math.hypot(IW, IH) / 2;
-function makeGeo(list) {
-let NS = 0; for (const q of list) NS += q.x.length - 1;
-const aAB = new Float32Array(NS * 4), aI = new Float32Array(NS * 4), aKey = new Float32Array(NS * 4), aS = new Float32Array(NS * 2), aBg = new Float32Array(NS), aDF = new Float32Array(NS * 4);
-let si = 0;
-list.forEach((q, p) => {
-  const n = q.x.length; let len = 0; const cum = [0];
-  for (let v = 1; v < n; v++) { len += Math.hypot(q.x[v] - q.x[v - 1], q.y[v] - q.y[v - 1]); cum.push(len); }
-  let ymin = 1e9, mx = 0, my = 0; for (let v = 0; v < n; v++) { ymin = Math.min(ymin, q.y[v]); mx += q.x[v]; my += q.y[v]; }
-  mx /= n; my /= n;
-  const kTop = Math.min(1, Math.max(0, ymin / IH)) * 0.85, kRnd = hash(p) * 0.85, kCtr = Math.min(1, Math.hypot(mx - cx, my - cy) / R) * 0.85;
-  const phase = hash(p + 991) * 1000;
-  for (let v = 0; v + 1 < n; v++, si++) {
-    aAB.set([q.x[v], q.y[v], q.x[v + 1], q.y[v + 1]], si * 4);
-    aI.set([q.i[v], q.i[v + 1], q.w[v], q.w[v + 1]], si * 4);
-    aDF.set([q.d[v], q.d[v + 1], q.f[v], q.f[v + 1]], si * 4);
-    aKey.set([kTop, kRnd, kCtr, (cum[v] + cum[v + 1]) / 2 / Math.max(1, len)], si * 4);
-    aS.set([cum[v] + phase, cum[v + 1] + phase], si * 2); aBg[si] = q.bg;
-  }
-});
-const quad = new THREE.InstancedBufferGeometry();
-quad.setAttribute('position', new THREE.Float32BufferAttribute([0, -1, 0, 1, -1, 0, 1, 1, 0, 0, 1, 0], 3));
-quad.setIndex([0, 1, 2, 0, 2, 3]);
-for (const [k, arr, n] of [['ab', aAB, 4], ['iw', aI, 4], ['df', aDF, 4], ['key', aKey, 4], ['sArc', aS, 2], ['bgf', aBg, 1]]) quad.setAttribute(k, new THREE.InstancedBufferAttribute(arr, n));
-quad.instanceCount = NS;
-return quad;
-}
-
-const U = { uRes: { value: new THREE.Vector2(1, 1) }, uWidth: { value: 1 }, uGain: { value: 1 }, uGamma: { value: 1 }, uA: { value: new THREE.Color() }, uB: { value: new THREE.Color() },
-  uMode: { value: 0 }, uProg: { value: 0 }, uOrder: { value: 0 }, uT: { value: 0 }, uPulse: { value: 0 }, uPSpeed: { value: 1 }, uBreathe: { value: 0 },
-  uH: { value: IH }, uIW: { value: IW }, uBgGain: { value: 1 }, uWave: { value: 1 }, uRelief: { value: 0.3 }, uDots: { value: 1 },
-  uFx: { value: new Array(10).fill(0) }, uFxAmt: { value: 1 }, uFxSpeed: { value: 1 } };
-// image px (x right, y down) + depth → world (centred, y up, z toward the viewer). Shared by lines and particles.
-const WORLD = /* glsl */`
-  uniform float uH, uIW, uRelief, uWave, uT, uFx[10], uFxAmt, uFxSpeed;
-  float h1(float n){ return fract(sin(n) * 43758.5453); }
-  vec2 fxPos(vec2 xy, float bg){
-    float T = uT * uFxSpeed;
-    if (uFx[4] > 0.5) {   // glitch: random horizontal slices jump sideways for a beat
-      float sl = floor(xy.y / (uH * 0.035)), k = floor(T * 9.0), g = step(0.9, h1(sl * 7.13 + k * 3.7));
-      xy.x += g * (h1(sl + k * 1.31) - 0.5) * 0.08 * uIW * uFxAmt; }
-    if (uFx[5] > 0.5 && bg < 0.5) {   // wind: the farther from the face, the more hair and edges sway
-      vec2 c = vec2(uIW * 0.5, uH * 0.38); float d = clamp(length((xy - c) / vec2(uIW * 0.5, uH * 0.5)), 0.0, 1.5), w = d * d;
-      xy.x += w * uIW * 0.025 * uFxAmt * (sin(T * 1.7 + xy.y * 0.006) + 0.5 * sin(T * 3.1 + xy.y * 0.017));
-      xy.y += w * uH * 0.006 * uFxAmt * sin(T * 2.3 + xy.x * 0.01); }
-    return xy; }
-  vec3 world(vec2 xy, float d, float f, float bg){
-    xy = fxPos(xy, bg);
-    float zw = -0.5 * uRelief * uH + 0.03 * uH * sin(xy.x * 0.0017 + xy.y * 0.0023 + 0.8);   // the wave sheet, at the figure's back
-    float zf = (d - 0.5) * uRelief * uH;                                                       // the figure's relief
-    vec3 p = vec3(xy.x - uIW * 0.5, uH * 0.5 - xy.y, mix(zw, zf, f));
-    float sw = uWave * uH * (0.006 + 0.004 * bg) * sin(xy.x * 0.0026 - uT * 0.9 + xy.y * 0.0012) + uWave * uH * 0.003 * sin(xy.x * 0.0061 + uT * 0.6);
-    p.y += sw; p.z += sw * 1.5;                                                                 // the swell moves waves and figure together
-    return p; }`;
-const COLOR = /* glsl */`
-  uniform vec3 uA, uB; uniform float uMode, uGain, uGamma, uH;
-  vec3 tint(float inten, float y){
-    float l = pow(clamp(inten, 0.0, 1.0), uGamma);
-    vec3 c = uMode < 0.5 ? uA : (uMode < 1.5 ? mix(uA, uB, clamp(y / uH, 0.0, 1.0)) : mix(uA, uB, smoothstep(0.7, 1.0, l)));
-    return c * l * uGain; }`;
-const lineMat = new THREE.ShaderMaterial({ uniforms: U, side: THREE.DoubleSide, transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending,
-  vertexShader: /* glsl */`${WORLD}
-    attribute vec4 ab, iw, df, key; attribute vec2 sArc; attribute float bgf;
-    uniform vec2 uRes; uniform float uWidth, uProg, uOrder, uPulse, uPSpeed, uBreathe, uBgGain;
-    varying float vI, vAcross, vVis, vS, vY, vHalf, vX, vR, vBg;
-    void main(){
-      vec4 ca = projectionMatrix * modelViewMatrix * vec4(world(ab.xy, df.x, df.z, bgf), 1.0);
-      vec4 cb = projectionMatrix * modelViewMatrix * vec4(world(ab.zw, df.y, df.w, bgf), 1.0);
-      vec2 sa = ca.xy / ca.w * 0.5 * uRes, sb = cb.xy / cb.w * 0.5 * uRes, d = sb - sa;
-      float L = length(d); vec2 t = L > 1e-4 ? d / L : vec2(1.0, 0.0), n = vec2(-t.y, t.x);
-      vec4 c = mix(ca, cb, position.x);
-      float pxPerUnit = 0.5 * uRes.y * projectionMatrix[1][1] / max(c.w, 1e-3);
-      float halfPx = max(0.75, mix(iw.z, iw.w, position.x) * uWidth * pxPerUnit * 0.5 + 0.6);   // screen-space width: stays a crisp line at any angle
-      c.xy += (n * position.y + t * (position.x * 2.0 - 1.0)) * halfPx / (0.5 * uRes) * c.w;
-      gl_Position = (ca.w <= 0.0 || cb.w <= 0.0) ? vec4(0.0, 0.0, -2.0, 1.0) : c;
-      vI = mix(iw.x, iw.y, position.x) * mix(1.0, uBgGain, bgf); vAcross = position.y; vHalf = halfPx;
-      float k0 = uOrder < 0.5 ? key.x : (uOrder < 1.5 ? key.y : key.z);
-      vVis = smoothstep(0.0, 0.004, uProg * 1.15 - (k0 + key.w * 0.15));   // each line draws from its start to its end
-      vS = mix(sArc.x, sArc.y, position.x); vY = mix(ab.y, ab.w, position.x); vX = mix(ab.x, ab.z, position.x); vR = key.y; vBg = bgf;
-      vI *= 1.0 + uBreathe * 0.25 * sin(uT * 1.3 + vY * 0.01 + ab.x * 0.004); }`,
-  fragmentShader: /* glsl */`${COLOR}
-    uniform float uT, uPulse, uPSpeed, uIW, uFx[10], uFxAmt, uFxSpeed; varying float vI, vAcross, vVis, vS, vY, vHalf, vX, vR, vBg;
-    float h1(float n){ return fract(sin(n) * 43758.5453); }
-    vec3 hsv(float h){ return clamp(abs(mod(h * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0); }
-    void main(){
-      float edge = 1.0 - smoothstep(max(0.0, 1.0 - 1.2 / vHalf), 1.0, abs(vAcross));
-      float pulse = uPulse * pow(max(0.0, sin((vS - uT * 160.0 * uPSpeed) * 0.012)), 24.0) * 2.5;   // light running along each line
-      vec3 col = tint(vI, vY);
-      float T = uT * uFxSpeed, A = uFxAmt, fig = 1.0 - vBg, add = 0.0, mul = 1.0; vec2 uv = vec2(vX / uIW, vY / uH);
-      if (uFx[0] > 0.5) add += A * pow(max(0.0, sin(T * 5.0 + vR * 700.0 + vS * 0.03)), 40.0) * 3.0;                        // shimmer: sparkles run along the lines
-      if (uFx[1] > 0.5) { float p = mod(T * 0.22, 1.4) - 0.2; add += A * exp(-pow((uv.y - p) / 0.025, 2.0)) * 2.0; }        // scan: a bright band sweeps top to bottom
-      if (uFx[2] > 0.5) { float d = length((vec2(vX, vY) - vec2(uIW * 0.5, uH * 0.38)) / uH), r = mod(T * 0.3, 1.2);
-        add += A * exp(-pow((d - r) / 0.018, 2.0)) * 2.0 * (1.0 - r / 1.2); }                                              // ripple: rings of light leave the face
-      if (uFx[3] > 0.5) { float b = fract(T / 1.1); mul *= 1.0 + A * fig * (1.2 * exp(-pow((b - 0.05) / 0.035, 2.0)) + 0.8 * exp(-pow((b - 0.24) / 0.035, 2.0))); }   // heartbeat: lub-dub
-      if (uFx[6] > 0.5) mul *= mix(1.0, step(0.45, fract((vS - T * 140.0) / 28.0)) * 1.6, clamp(A, 0.0, 1.0));             // dash flow: marching dashes
-      if (uFx[7] > 0.5) { float k = floor(T * 14.0), off = step(0.9, h1(vR * 977.0 + k)), glob = step(0.97, h1(k * 1.7));
-        mul *= 1.0 - min(1.0, A) * 0.9 * max(off, glob * 0.7); }                                                           // neon flicker
-      if (uFx[8] > 0.5) { float L = dot(col, vec3(0.3, 0.59, 0.11)); col = mix(col, hsv(fract(uv.y * 0.7 + uv.x * 0.3 - T * 0.08)) * L * 1.5, clamp(A * 0.8, 0.0, 1.0)); }   // aurora
-      if (uFx[9] > 0.5) { float p = mod(T * 0.28, 1.8) - 0.4; add += A * exp(-pow(((uv.x * 0.6 + uv.y * 0.4) - p) / 0.03, 2.0)) * 2.5; }   // light sweep: a diagonal shine
-      vec3 c = col * (1.0 + pulse) * mul + uB * pulse * 0.35 * vI + mix(uA, vec3(1.0), 0.5) * add * max(vI, 0.15) * uGain;
-      gl_FragColor = vec4(c * edge * vVis, 1.0); }`,
-});
-const lines = new THREE.Mesh(makeGeo(polys.filter((q) => !q.bg)), lineMat); lines.frustumCulled = false; scene.add(lines);
-// the backdrop rides with the camera, so turning the figure never shows the edge of the wave field
-const backdrop = new THREE.Mesh(makeGeo(polys.filter((q) => q.bg)), lineMat); backdrop.frustumCulled = false;
-scene.add(camera); camera.add(backdrop);
-
-// ---------- particles ----------
-const db = await getBin('dots.bin'), ND = meta.dots;
-const dp = new Uint16Array(db, 0, ND * 2), di = new Uint8Array(db, ND * 4, ND), dr = new Uint8Array(db, ND * 5, ND);
-const dpos = new Float32Array(ND * 3), dat = new Float32Array(ND * 4);
-for (let i = 0; i < ND; i++) { const x = dp[i * 2] / 4, y = dp[i * 2 + 1] / 4; dpos.set([x, y, 0], i * 3); dat.set([di[i] / 255, dr[i] / 16, hash(i + 5), depthAt(x, y)], i * 4); }
-const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.BufferAttribute(dpos, 3)); dg.setAttribute('dat', new THREE.BufferAttribute(dat, 4));
-const dotMat = new THREE.ShaderMaterial({ uniforms: U, transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending,
-  vertexShader: /* glsl */`${WORLD} attribute vec4 dat; uniform vec2 uRes; uniform float uProg, uDots; varying float vI, vY, vA;
-    void main(){ vI = dat.x * (0.7 + 0.3 * sin(uT * (1.0 + 2.0 * dat.z) + dat.z * 60.0)); vY = position.y;
-      vA = uDots * smoothstep(dat.z * 0.9, dat.z * 0.9 + 0.1, uProg);
-      vec4 c = projectionMatrix * modelViewMatrix * vec4(world(position.xy, dat.w, 1.0, 0.0), 1.0); gl_Position = c;
-      gl_PointSize = max(1.0, dat.y * uRes.y * projectionMatrix[1][1] / max(c.w, 1e-3) + 1.0); }`,
-  fragmentShader: /* glsl */`${COLOR} varying float vI, vY, vA;
-    void main(){ float r = length(gl_PointCoord - 0.5) * 2.0; if (r > 1.0) discard; gl_FragColor = vec4(tint(vI, vY) * (1.0 - r * r) * vA, 1.0); }` });
-const dots = new THREE.Points(dg, dotMat); dots.frustumCulled = false; scene.add(dots);
-
-// ---------- post: bloom = the glow ----------
-const composer = new EffectComposer(renderer);
-composer.addPass(new RenderPass(scene, camera));
-const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.5, 0.35, 0.12);
-composer.addPass(bloom); composer.addPass(new OutputPass());
-
-// ---------- frame + camera ----------
-const FRAMES = { '9:16': [1080, 1920], '4:5': [1080, 1350], '1:1': [1080, 1080], '16:9': [1920, 1080] };
-let recording = false;
-function frontDistance(aspect) {   // distance at which the portrait fills ~86% of the frame
-  const t = Math.tan(FOV / 2 * Math.PI / 180);
-  return Math.max(IH / 2 / t, IW / 2 / (t * aspect)) / 0.86;
-}
-function front() {
-  const d = frontDistance(camera.aspect);
-  camera.position.set(0, 0, d); controls.target.set(0, 0, 0); controls.update();
-  backdrop.position.set(0, 0, -d);   // same distance as the portrait in front view, so the waves line up with it there
-}
-function setSize(w, h, css = true) {
-  renderer.setSize(w, h, css); composer.setSize(w, h);
-  const pr = renderer.getPixelRatio(); U.uRes.value.set(w * pr, h * pr);
-  camera.aspect = w / h; camera.updateProjectionMatrix();
-}
-function layout() {   // canvas = the chosen frame, as big as the window allows, centred
-  const [fw, fh] = FRAMES[S.frame], k = Math.min(innerWidth / fw, innerHeight / fh), cw = Math.floor(fw * k), ch = Math.floor(fh * k);
-  const was = camera.aspect; setSize(cw, ch);
-  Object.assign(renderer.domElement.style, { position: 'fixed', left: (innerWidth - cw) / 2 + 'px', top: (innerHeight - ch) / 2 + 'px' });
-  if (Math.abs(was - camera.aspect) > 1e-3) front();
-}
-addEventListener('resize', () => { if (!recording) layout(); });
-
-// ---------- panel ----------
 const $ = (id) => document.getElementById(id);
-const SLIDERS = ['width', 'gain', 'gamma', 'glow', 'dots', 'dur', 'pulse', 'pspeed', 'breathe', 'bgl', 'wave', 'fxamt', 'fxspeed'];
-function apply() {
-  U.uA.value.set(S.a); U.uB.value.set(S.b); U.uMode.value = S.mode; U.uWidth.value = S.width; U.uGain.value = S.gain; U.uGamma.value = S.gamma;
-  U.uOrder.value = S.order; U.uPulse.value = S.pulse; U.uPSpeed.value = S.pspeed; U.uBreathe.value = S.breathe; U.uDots.value = S.dots;
-  U.uBgGain.value = S.bgl; U.uWave.value = S.wave; U.uRelief.value = S.relief;
-  for (let k = 0; k < 10; k++) U.uFx.value[k] = S.fx.includes(k) ? 1 : 0; U.uFxAmt.value = S.fxamt; U.uFxSpeed.value = S.fxspeed;
-  for (const b of $('fx').querySelectorAll('button')) b.classList.toggle('on', S.fx.includes(+b.dataset.v));
-  bloom.strength = S.glow; scene.background = new THREE.Color(S.bg); document.body.style.background = S.bg;
-  for (const [id, key] of [['colA', 'a'], ['colB', 'b'], ['bg', 'bg']]) $(id).value = S[key];
-  for (const id of SLIDERS) $(id).value = S[id];
-  for (const [seg, key] of [['preset', 'preset'], ['mode', 'mode'], ['order', 'order'], ['frame', 'frame']]) for (const b of $(seg).querySelectorAll('button')) b.classList.toggle('on', String(S[key]) === b.dataset.v);
+const Q = new URLSearchParams(location.search);
+const FRAMES = { '9:16': [1080, 1920, 9, 16], '4:5': [1080, 1350, 4, 5], '1:1': [1080, 1080, 1, 1], '16:9': [1920, 1080, 16, 9] };
+const FONTS = { plex: 'fonts/IBMPlexSansArabic-Bold.ttf', inter: 'fonts/Inter-Variable.ttf' };
+const SAMPLES = ['heart', 'spark', 'bolt'];
+const IN_LIST = ['none', 'fade', 'draw', 'assemble', 'wipe', 'glitch', 'sweep', 'sting', 'morph'];
+const OUT_LIST = ['none', 'fade', 'draw', 'undraw', 'disperse', 'wipe', 'glitch', 'sweep'];
+const STYLES = ['explode', 'dust', 'wind', 'vortex'], DIRS = ['ltr', 'rtl', 'ttb', 'btt', 'diag'];
+const ORDERS = ['auto', 'ttb', 'ltr', 'rtl', 'center', 'random', 'path', 'btt', 'outside'];
+const EASES = Object.keys(EASE_ID);
+const LETTER = (k) => String.fromCharCode(65 + (k % 26)) + (k >= 26 ? Math.floor(k / 26) : '');
+const status = (msg, err = false) => { $('status').textContent = msg; $('status').classList.toggle('err', err); };
+
+// transition defaults come straight from scene.mjs (normalize a dummy two-shot scene), so the panel never drifts from the engine
+function trDefaults(kind, type) {
+  const shots = [{ input: { text: 'x' }, duration: 1e3 }, { input: { text: 'x' }, duration: 1e3, [kind]: { type } }];
+  const t = normalize({ shots }).shots[1][kind]; return { type, dur: t.dur ?? 0, ease: t.ease || 'outCubic', style: t.style, dir: t.dir, order: 'auto' };
 }
-for (const b of $('preset').querySelectorAll('button')) b.onclick = () => { S.preset = b.dataset.v; Object.assign(S, PRESETS[S.preset]); apply(); };
-for (const b of $('mode').querySelectorAll('button')) b.onclick = () => { S.mode = +b.dataset.v; S.preset = ''; apply(); };
-for (const b of $('order').querySelectorAll('button')) b.onclick = () => { S.order = +b.dataset.v; apply(); replay(); };
-for (const b of $('fx').querySelectorAll('button')) b.onclick = () => { const v = +b.dataset.v; S.fx = S.fx.includes(v) ? S.fx.filter((x) => x !== v) : [...S.fx, v]; apply(); };
-for (const b of $('frame').querySelectorAll('button')) b.onclick = () => { S.frame = b.dataset.v; apply(); layout(); };
-for (const [id, key] of [['colA', 'a'], ['colB', 'b'], ['bg', 'bg']]) $(id).oninput = (e) => { S[key] = e.target.value; S.preset = ''; apply(); };
-for (const id of SLIDERS) $(id).oninput = (e) => { S[id] = +e.target.value; apply(); };
-let t0 = performance.now();
-function replay() { t0 = performance.now(); }
-$('replay').onclick = replay;
-$('save').onclick = () => { composer.render(); const a = document.createElement('a'); a.download = 'line-portrait.png'; a.href = renderer.domElement.toDataURL('image/png'); a.click(); };
-addEventListener('keydown', (e) => { if (e.key === 'h' || e.key === 'H') $('panel').classList.toggle('hide'); });
 
-// ---------- video: every frame is rendered at its exact time (frame / 30 s) and encoded with WebCodecs into an MP4,
-// so the file never stutters however slow the machine is; it renders at the frame's own size, not the window's ----------
-$('rec').onclick = async () => {
-  if (recording) return;
-  if (!('VideoEncoder' in window)) { $('recstat').textContent = 'this browser has no WebCodecs — use Chrome or Edge'; return; }
-  recording = true;
-  const secs = Math.max(1, Math.min(60, +$('vsec').value || 8)), FPS = 30, N = Math.round(secs * FPS);
-  const [vw, vh] = FRAMES[S.frame], drawDur = Math.min(S.dur, Math.max(0.5, secs - 1));   // the drawing always finishes ~1 s before the end
-  const pr = renderer.getPixelRatio(), cam0 = camera.position.clone(), tgt = controls.target.clone(), rel = cam0.clone().sub(tgt);
-  try {
-    let cfg = null;
-    for (const codec of ['avc1.640033', 'avc1.640028', 'avc1.4d0033', 'avc1.42003e']) {
-      const c = { codec, width: vw, height: vh, bitrate: 20e6, framerate: FPS };
-      if ((await VideoEncoder.isConfigSupported(c)).supported) { cfg = c; break; }
-    }
-    if (!cfg) throw new Error('no H.264 encoder for ' + vw + 'x' + vh);
-    const { Muxer, ArrayBufferTarget } = await import('./vendor/mp4-muxer/mp4-muxer.mjs');
-    const muxer = new Muxer({ target: new ArrayBufferTarget(), video: { codec: 'avc', width: vw, height: vh, frameRate: FPS }, fastStart: 'in-memory' });
-    let encErr = null;
-    const enc = new VideoEncoder({ output: (chunk, m) => muxer.addVideoChunk(chunk, m), error: (e) => { encErr = e; } });
-    enc.configure(cfg);
-    // render at exactly vw x vh (pixel ratio 1), whatever the screen's pixel density or the window's size
-    renderer.setPixelRatio(1); composer.setPixelRatio(1); setSize(vw, vh, false);
-    for (let i = 0; i < N; i++) {
-      if (encErr) throw encErr;
-      const t = i / FPS, yaw = S.spin * t * Math.PI / 180;
-      camera.position.copy(tgt).add(rel.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw)); camera.lookAt(tgt);
-      U.uT.value = t; U.uProg.value = Math.min(1, t / drawDur); composer.render();
-      const vf = new VideoFrame(renderer.domElement, { timestamp: Math.round(i * 1e6 / FPS), duration: Math.round(1e6 / FPS) });
-      enc.encode(vf, { keyFrame: i % (FPS * 2) === 0 }); vf.close();
-      if (enc.encodeQueueSize > 6) await new Promise((r) => enc.addEventListener('dequeue', r, { once: true }));
-      if (i % 10 === 0) { $('recstat').textContent = `rendering ${Math.round(i / N * 100)}%`; await new Promise((r) => setTimeout(r, 0)); }
-    }
-    await enc.flush(); muxer.finalize(); enc.close();
-    const blob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `line-portrait-${secs}s-${vw}x${vh}.mp4`; a.click();
-    $('recstat').textContent = `saved ${a.download} (${(blob.size / 1e6).toFixed(1)} MB)`;
-  } catch (e) {
-    console.error(e); $('recstat').textContent = 'video failed: ' + (e.message || e);
-  } finally {
-    renderer.setPixelRatio(pr); composer.setPixelRatio(pr); camera.position.copy(cam0); controls.target.copy(tgt); recording = false; layout(); controls.update();
-    t0 = performance.now() - S.dur * 1000;
-  }
+// ---------------------------------------------------------------- the document
+let uid = 1;
+const newShot = (o) => ({ id: uid++, kind: 'text', portrait: 'boy', svgSample: 'heart', svgFile: null, png: null, text: 'Hello', font: 'plex', fontFile: null,
+  duration: 3, fit: 0.8, in: trDefaults('in', 'draw'), out: trDefaults('out', 'none'), preset: '', ...o });
+const presetName = PRESETS[Q.get('preset')] ? Q.get('preset') : 'ember';
+const fxQ = (Q.get('fx') || '').split(',').filter(Boolean).map((v) => (/^\d+$/.test(v) ? FX[+v] : v)).filter((v) => FX.includes(v));
+const D = {
+  frame: FRAMES[Q.get('frame')] ? Q.get('frame') : '9:16', fps: 30, transparent: Q.get('transparent') === '1', strokes: 9000, dotCount: 6000, backdrop: 0.6, wave: 1,
+  look: { ...LOOK_DEFAULT, ...PRESETS[presetName], preset: presetName }, bg: PRESETS[presetName].bg, fx: fxQ, fxAmount: 1, fxSpeed: 1,
+  shots: [   // the demo: logo sting → morph to Arabic text → morph to a portrait
+    newShot({ kind: 'svg', svgSample: 'spark', duration: 2.6, fit: 0.55, in: trDefaults('in', 'sting') }),
+    newShot({ kind: 'text', text: 'خطوط من نور', duration: 2.8, fit: 0.85, in: trDefaults('in', 'morph') }),
+    newShot({ kind: 'portrait', portrait: Q.get('d') === 'girl' ? 'girl' : 'boy', duration: 4, fit: 0.92, in: { ...trDefaults('in', 'morph'), dur: 1.6 } }),
+  ],
 };
+let sel = 0;
 
-apply(); layout(); front();
+/** engine input for a shot (blob URLs for the page, data URLs for scene.json); null if the shot has nothing to show yet */
+function inputOf(s, forJson) {
+  if (s.kind === 'portrait') return { baked: `data/${s.portrait}` };
+  if (s.kind === 'svg') return s.svgFile ? { svg: s.svgFile.text } : { svg: `assets/${s.svgSample}.svg` };
+  if (s.kind === 'png') return s.png ? { png: forJson ? s.png.dataUrl : s.png.url } : null;
+  if (s.kind === 'text') { if (!s.text.trim()) return null;
+    const font = s.font === 'custom' && s.fontFile ? (forJson ? s.fontFile.dataUrl : s.fontFile.url) : FONTS[s.font] || FONTS.plex;
+    return { text: s.text, font }; }
+  return null;
+}
+const trSpec = (t, kind, k, shot) => {
+  if (!t || t.type === 'none') return undefined;
+  const o = { type: t.type, dur: +t.dur, ease: t.ease };
+  if (['assemble', 'sting', 'disperse'].includes(t.type)) o.style = t.style || (kind === 'in' ? 'explode' : 'dust');
+  if (['wipe', 'sweep'].includes(t.type)) o.dir = t.dir || (t.type === 'sweep' ? 'diag' : 'ltr');
+  if (t.order && t.order !== 'auto') o.order = t.order;
+  return o;
+};
+/** doc → scene spec. Fixes what the engine would reject (too-long transitions, a morph into shot A) and reports it. */
+function buildSpec({ forJson = false, alpha = false } = {}) {
+  const [w, h] = FRAMES[D.frame], warn = [];
+  const fx = D.fx.slice();
+  const shots = D.shots.map((s, k) => {
+    const input = inputOf(s, forJson); if (!input) throw new Error(`shot ${LETTER(k)}: ${s.kind === 'png' ? 'open or drop an image' : 'type some text'}`);
+    let tin = trSpec(s.in, 'in', k, s), tout = trSpec(s.out, 'out', k, s);
+    if (tin?.type === 'morph' && k === 0) { tin = { type: 'fade', dur: 0.6, ease: 'outCubic' }; warn.push('shot A cannot morph (fade used)'); }
+    if (D.shots[k + 1]?.in.type === 'morph') tout = undefined;   // the next shot's morph takes this shape whole
+    const din = tin?.dur || 0, dout = tout?.dur || 0;
+    if (din + dout > s.duration) { const f = s.duration / (din + dout); if (tin) tin.dur = +(din * f).toFixed(3); if (tout) tout.dur = +(dout * f - 1e-3).toFixed(3); warn.push(`shot ${LETTER(k)}: transitions shortened to fit`); }
+    const o = { input, duration: +s.duration, fit: +s.fit, fx, fxAmount: D.fxAmount, fxSpeed: D.fxSpeed };
+    if (tin) o.in = tin; if (tout) o.out = tout; if (s.preset) o.look = { preset: s.preset };
+    return o;
+  });
+  const look = { ...D.look }; delete look.bg;
+  const spec = { width: w, height: h, fps: D.fps, background: alpha || D.transparent ? 'transparent' : D.bg, strokes: D.strokes, points: 8, dots: D.dotCount,
+    backdrop: D.backdrop, wave: D.wave, look, shots };
+  return { spec, warn };
+}
 
-// ---------- loop (or one exact frame: window.renderAt(seconds)) ----------
-function draw(t, tDraw) { U.uT.value = t; U.uProg.value = Math.min(1, tDraw / S.dur); composer.render(); }
-window.renderAt = (sec, yawDeg = 0) => { front(); if (yawDeg) { camera.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), yawDeg * Math.PI / 180); camera.lookAt(0, 0, 0); } draw(sec, sec); return sec; };
+// ---------------------------------------------------------------- engine
+const canvas = $('c');
+const eng = await createEngine({ canvas, width: 1080, height: 1920, assetBase: './', sceneBase: './' });
+const shapeCache = new Map();   // input key → Promise<shape>
+function shapeFor(input) {
+  const key = JSON.stringify(input);
+  if (!shapeCache.has(key)) {
+    const p = (async () => {
+      let sh;
+      if (input.baked) sh = await loadBaked('./' + input.baked.replace(/\/?$/, '/'), { fade: true });
+      else if (input.svg) sh = await svgToShape(input.svg.trim().startsWith('<') ? input.svg : await (await fetch(input.svg)).text(), input);
+      else if (input.png) sh = await bitmapToShape(input.png, input);
+      else sh = await textToShape(input.text, input.font, './vendor/harfbuzz/', input);
+      sh.toJSON = () => 'shape:' + key.length + ':' + key.slice(0, 64);   // the engine keys inputs by JSON — keep that cheap
+      return sh;
+    })();
+    p.catch(() => shapeCache.delete(key));
+    shapeCache.set(key, p);
+  }
+  return shapeCache.get(key);
+}
+// geometry = everything that needs eng.load (tracing, sampling, fitting, morph pairing, the backdrop); the rest is applied in place
+const geoKey = (spec) => JSON.stringify([spec.width, spec.height, spec.strokes, spec.dots, spec.backdrop, spec.shots.map((s) => [JSON.stringify(s.input).length, JSON.stringify(s.input).slice(0, 200), s.fit, s.in?.type === 'morph'])]);
+let loadedKey = null, info = null, syncing = null, again = false, lastLoadMs = 0, lastFastMs = 0, lastWarn = '';
+const perf = { loads: [], fast: [] };
+
+function sync() {   // coalesces: one sync at a time, the latest doc wins
+  if (syncing) { again = true; return syncing; }
+  syncing = (async () => {
+    do { again = false; await syncOnce(); } while (again);
+    syncing = null;
+  })();
+  return syncing;
+}
+async function syncOnce() {
+  let built;
+  try { built = buildSpec(); } catch (e) { status(e.message, true); return; }
+  const { spec, warn } = built, key = geoKey(spec);
+  try {
+    if (key === loadedKey) {   // look / fx / timing / transitions: re-normalise and swap into the live spec — no re-load, still a pure function of t
+      const t0 = performance.now(); const n = normalize(spec);
+      Object.assign(eng.spec, n); lastFastMs = performance.now() - t0; perf.fast.push(lastFastMs);
+    } else {
+      status('tracing shapes…');
+      const shapes = await Promise.all(spec.shots.map((s) => shapeFor(s.input)));
+      if (again) return;   // a newer edit is waiting: skip the stale load
+      const t0 = performance.now();
+      info = await eng.load({ ...spec, shots: spec.shots.map((s, k) => ({ ...s, input: { shape: shapes[k] } })) });
+      lastLoadMs = performance.now() - t0; perf.loads.push(lastLoadMs); loadedKey = key;
+      layout();
+      status(`loaded in ${Math.round(lastLoadMs)} ms · ${spec.shots.length} shots · ${spec.strokes} lines`);
+    }
+    info = { ...info, duration: eng.spec.duration, frames: eng.spec.frames };
+    lastWarn = warn.join(' · '); if (lastWarn) status(lastWarn);
+    T.t = Math.min(T.t, info.duration - 1e-6); dirty = true; refreshTimeline();
+  } catch (e) { status(String(e.message || e), true); }
+}
+
+// ---------------------------------------------------------------- layout (preview = the export frame scaled down, same exact aspect)
+let PW = 0, PH = 0, exporting = false;
+function layout() {
+  if (exporting) return;
+  const [fw, fh, rw, rh] = FRAMES[D.frame], tb = $('transport').offsetHeight;
+  const k = Math.max(1, Math.floor(Math.min(innerWidth / rw, (innerHeight - tb) / rh))), cw = k * rw, ch = k * rh;
+  const pk = Math.max(1, Math.min(Math.floor(k * Math.min(devicePixelRatio || 1, 2)), fw / rw));
+  PW = pk * rw; PH = pk * rh;
+  if (eng.spec) eng.setSize(PW, PH);
+  Object.assign(canvas.style, { width: cw + 'px', height: ch + 'px', left: (innerWidth - cw) / 2 + 'px', top: (innerHeight - tb - ch) / 2 + 'px' });
+  dirty = true;
+}
+addEventListener('resize', layout);
+
+// ---------------------------------------------------------------- transport (time is the only state; every frame is renderTime(t))
+const T = { t: Q.has('t') ? +Q.get('t') : 0, playing: !Q.has('t') && Q.get('play') !== '0', t0: performance.now() };
+let dirty = true;
+const fps = () => D.fps;
+function seek(t, snap = true) { if (!info) return; t = Math.max(0, Math.min(t, info.duration - 1e-6)); if (snap) t = Math.min(Math.round(t * fps()) / fps(), info.duration - 1e-6); T.t = t; T.t0 = performance.now() - t * 1000; dirty = true; }
+function play(on = !T.playing) { T.playing = on; if (on) { if (info && T.t >= info.duration - 1 / fps()) T.t = 0; T.t0 = performance.now() - T.t * 1000; } $('play').textContent = on ? '❚❚' : '▶'; dirty = true; }
+$('play').onclick = () => play();
+$('scrub').oninput = (e) => { play(false); seek(+e.target.value / fps()); };
+$('replay').onclick = () => { seek(0); play(true); };
+function frame() {
+  if (info && !exporting && eng.spec) {
+    if (T.playing) { T.t = ((performance.now() - T.t0) / 1000) % info.duration; dirty = true; }
+    if (dirty) {
+      try { eng.renderTime(T.t); } catch (e) { status(String(e.message || e), true); }
+      dirty = false; updateTime();
+    }
+  }
+  requestAnimationFrame(frame);
+}
+function updateTime() {
+  const f = Math.min(info.frames - 1, Math.round(T.t * fps()));
+  $('time').textContent = `${T.t.toFixed(2)} / ${info.duration.toFixed(2)} s · f ${f}/${info.frames - 1}`;
+  if (document.activeElement !== $('scrub')) $('scrub').value = f;
+  const st = $('strip'), w = st.clientWidth; $('head').style.left = (T.t / info.duration) * w - 1 + 'px';
+}
+function refreshTimeline() {
+  if (!info) return;
+  $('scrub').max = info.frames - 1; $('vlen').textContent = `${info.duration.toFixed(2)} s · ${info.frames} frames @ ${fps()} fps`;
+  const st = $('strip'); st.querySelectorAll('.cell').forEach((c) => c.remove());
+  eng.spec.shots.forEach((s, k) => {
+    const c = document.createElement('div'); c.className = 'cell' + (k === sel ? ' on' : ''); c.style.flex = `${s.duration} 1 0`;
+    const i = document.createElement('i'); i.style.width = (s.in.dur / s.duration * 100) + '%';
+    const u = document.createElement('u'); u.style.width = (s.out.dur / s.duration * 100) + '%';
+    c.append(i, u, `${LETTER(k)} · ${s.in.type === 'none' ? '' : s.in.type + ' · '}`, h('bdi', {}, D.shots[k] ? label(D.shots[k]) : ''));
+    c.title = `${LETTER(k)}: ${s.start.toFixed(2)}–${s.end.toFixed(2)} s`;
+    c.onclick = () => { pick(k); play(false); seek(s.start + Math.min(s.in.dur, s.duration * 0.9)); };
+    st.insertBefore(c, $('head'));
+  });
+  updateTime();
+}
+
+// ---------------------------------------------------------------- look panel (v1 controls)
+const LOOK_SLIDERS = ['width', 'gain', 'gamma', 'glow', 'dots', 'pulse', 'pulseSpeed', 'breathe'];
+const DOC_SLIDERS = ['fxAmount', 'fxSpeed', 'backdrop', 'wave', 'strokes', 'dotCount'];
+const segOn = (id, v) => { for (const b of $(id).querySelectorAll('button')) b.classList.toggle('on', String(v) === b.dataset.v); };
+function paintLook() {
+  for (const id of LOOK_SLIDERS) $(id).value = D.look[id];
+  for (const id of DOC_SLIDERS) $(id).value = D[id];
+  $('strokesV').textContent = (D.strokes / 1000).toFixed(1) + 'k'; $('dotCountV').textContent = (D.dotCount / 1000).toFixed(1) + 'k';
+  $('colA').value = D.look.a; $('colB').value = D.look.b; $('bg').value = D.bg;
+  segOn('preset', D.look.preset); segOn('mode', D.look.mode); segOn('frame', D.frame); segOn('vscale', vscale);
+  for (const b of $('fx').querySelectorAll('button')) b.classList.toggle('on', D.fx.includes(b.dataset.v));
+  $('transparent').classList.toggle('on', D.transparent); $('stage').classList.toggle('checker', D.transparent);
+  document.body.style.background = D.transparent ? '#111' : D.bg;
+}
+const changed = () => { paintLook(); sync(); };
+for (const b of $('preset').querySelectorAll('button')) b.onclick = () => { const p = PRESETS[b.dataset.v]; Object.assign(D.look, { a: p.a, b: p.b, mode: p.mode, glow: p.glow, gain: p.gain, preset: b.dataset.v }); D.bg = p.bg; changed(); };
+for (const b of $('mode').querySelectorAll('button')) b.onclick = () => { D.look.mode = +b.dataset.v; D.look.preset = ''; changed(); };
+for (const b of $('fx').querySelectorAll('button')) b.onclick = () => { const v = b.dataset.v; D.fx = D.fx.includes(v) ? D.fx.filter((x) => x !== v) : [...D.fx, v]; changed(); };
+for (const b of $('frame').querySelectorAll('button')) b.onclick = () => { D.frame = b.dataset.v; changed(); };
+for (const [id, key] of [['colA', 'a'], ['colB', 'b']]) $(id).oninput = (e) => { D.look[key] = e.target.value; D.look.preset = ''; changed(); };
+$('bg').oninput = (e) => { D.bg = e.target.value; changed(); };
+$('transparent').onclick = () => { D.transparent = !D.transparent; changed(); };
+for (const id of LOOK_SLIDERS) $(id).oninput = (e) => { D.look[id] = +e.target.value; changed(); };
+for (const id of DOC_SLIDERS) $(id).oninput = (e) => { D[id] = +e.target.value; paintLook(); debounced(id, sync, ['strokes', 'dotCount', 'backdrop'].includes(id) ? 150 : 0); };
+let vscale = 1;
+for (const b of $('vscale').querySelectorAll('button')) b.onclick = () => { vscale = +b.dataset.v; paintLook(); };
+const timers = {};
+function debounced(id, fn, ms) { if (!ms) return fn(); clearTimeout(timers[id]); timers[id] = setTimeout(fn, ms); }
+
+// ---------------------------------------------------------------- shots panel
+function label(s) {
+  if (s.kind === 'portrait') return 'Portrait ' + s.portrait;
+  if (s.kind === 'svg') return s.svgFile ? s.svgFile.name : s.svgSample + '.svg';
+  if (s.kind === 'png') return s.png ? s.png.name : 'PNG (none yet)';
+  return '“' + s.text.replace(/\s+/g, ' ').slice(0, 18) + '”';
+}
+function h(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) { if (v == null) continue; if (k.startsWith('on')) e[k] = v; else if (k === 'class') e.className = v; else if (k === 'style') e.style.cssText = v; else if (k in e && k !== 'list') e[k] = v; else e.setAttribute(k, v); }
+  for (const c of kids.flat()) if (c != null && c !== false) e.append(c);
+  return e;
+}
+const row = (lab, ...c) => h('div', { class: 'row' }, h('label', {}, lab), ...c);
+const seg = (opts, val, pick) => h('div', { class: 'seg' }, opts.map(([v, l]) => h('button', { class: String(v) === String(val) ? 'on' : '', onclick: () => pick(v) }, l)));
+const select = (opts, val, pick, disabled = []) => { const s = h('select', { onchange: (e) => pick(e.target.value) }, opts.map((v) => h('option', { value: v, disabled: disabled.includes(v) }, v))); s.value = val; return s; };
+const range = (min, max, step, val, on, fmt = (v) => (+v).toFixed(2)) => { const o = h('span', { class: 'val' }, fmt(val)); return [h('input', { type: 'range', min, max, step, value: val, oninput: (e) => { o.textContent = fmt(e.target.value); on(+e.target.value); } }), o]; };
+const number = (val, on, step = 0.1, min = 0) => h('input', { type: 'number', step, min, value: val, onchange: (e) => on(Math.max(min, +e.target.value || 0)) });
+
+function pick(k) { sel = Math.max(0, Math.min(D.shots.length - 1, k)); renderShots(); refreshTimeline(); }
+const edit = (fn, { rebuild = true, ms = 0 } = {}) => { fn(); if (rebuild) renderShots(); debounced('shot', () => { sync(); }, ms); };
+
+function renderShots() {
+  const list = $('shotList'); list.replaceChildren();
+  D.shots.forEach((s, k) => list.append(h('div', { class: 'shot' + (k === sel ? ' on' : ''), onclick: () => pick(k) },
+    h('b', {}, LETTER(k)), h('span', { title: label(s) }, h('bdi', {}, label(s))), h('em', {}, (+s.duration).toFixed(1) + 's'),
+    h('button', { class: 'mini', title: 'move up', disabled: k === 0, onclick: (e) => { e.stopPropagation(); move(k, -1); } }, '↑'),
+    h('button', { class: 'mini', title: 'move down', disabled: k === D.shots.length - 1, onclick: (e) => { e.stopPropagation(); move(k, 1); } }, '↓'),
+    h('button', { class: 'mini', title: 'remove', disabled: D.shots.length < 2, onclick: (e) => { e.stopPropagation(); remove(k); } }, '×'))));
+  const s = D.shots[sel], ed = $('shotEd'); ed.replaceChildren();
+  ed.append(h('div', { class: 'sec' }, `Shot ${LETTER(sel)} · input`));
+  ed.append(seg([['portrait', 'Portrait'], ['svg', 'SVG'], ['png', 'PNG'], ['text', 'Text']], s.kind, (v) => edit(() => { s.kind = v; })));
+  const g = h('div', { class: 'group' });
+  if (s.kind === 'portrait') g.append(row('Portrait', seg([['boy', 'Boy'], ['girl', 'Girl']], s.portrait, (v) => edit(() => { s.portrait = v; }))));
+  if (s.kind === 'svg') {
+    g.append(row('Sample', seg(SAMPLES.map((n) => [n, n]), s.svgFile ? '' : s.svgSample, (v) => edit(() => { s.svgSample = v; s.svgFile = null; }))));
+    g.append(h('button', { class: 'btn', onclick: () => openFile('.svg,image/svg+xml', (f) => useFile(f, sel)) }, s.svgFile ? `✓ ${s.svgFile.name} — open another…` : 'Open .svg file…'));
+  }
+  if (s.kind === 'png') g.append(h('button', { class: 'btn', onclick: () => openFile('image/*', (f) => useFile(f, sel)) }, s.png ? `✓ ${s.png.name} — open another…` : 'Open PNG / image…'),
+    h('div', { class: 'note' }, 'Icons on transparent or flat backgrounds trace best.'));
+  if (s.kind === 'text') {
+    g.append(h('textarea', { dir: 'auto', value: s.text, oninput: (e) => edit(() => { s.text = e.target.value; }, { rebuild: false, ms: 350 }) }));
+    const fonts = [['plex', 'Plex Arabic'], ['inter', 'Inter']]; if (s.fontFile) fonts.push(['custom', s.fontFile.name.slice(0, 14)]);
+    g.append(row('Font', seg(fonts, s.font, (v) => edit(() => { s.font = v; }))));
+    g.append(h('button', { class: 'btn', onclick: () => openFile('.ttf,.otf,font/ttf,font/otf', (f) => useFile(f, sel)) }, 'Open .ttf / .otf font…'));
+  }
+  ed.append(g);
+  ed.append(h('div', { class: 'sec' }, 'Timing'));
+  ed.append(row('Duration', number(s.duration, (v) => edit(() => { s.duration = Math.max(0.2, v); }), 0.1, 0.2), h('span', { class: 'note' }, 's')));
+  ed.append(row('Fit', ...range(0.2, 1.3, 0.01, s.fit, (v) => edit(() => { s.fit = v; }, { rebuild: false, ms: 120 }))));
+  for (const kind of ['in', 'out']) {
+    const t = s[kind], list = kind === 'in' ? IN_LIST : OUT_LIST, gg = h('div', { class: 'group' });
+    const morphNext = kind === 'out' && D.shots[sel + 1]?.in.type === 'morph';
+    ed.append(h('div', { class: 'sec' }, kind === 'in' ? 'In transition' : 'Out transition'));
+    if (morphNext) { ed.append(h('div', { class: 'note' }, `Shot ${LETTER(sel + 1)} morphs out of this one, so it has no exit.`)); continue; }
+    gg.append(row('Type', select(list, t.type, (v) => edit(() => { s[kind] = trDefaults(kind, v); }), kind === 'in' && sel === 0 ? ['morph'] : [])));
+    if (t.type !== 'none') {
+      gg.append(row('Duration', ...range(0.1, Math.max(0.2, s.duration), 0.05, t.dur, (v) => edit(() => { t.dur = v; }, { rebuild: false }), (v) => (+v).toFixed(2) + 's')));
+      gg.append(row('Ease', select(EASES, t.ease, (v) => edit(() => { t.ease = v; }, { rebuild: false }))));
+      if (['assemble', 'sting', 'disperse'].includes(t.type)) gg.append(row('Style', seg(STYLES.map((v) => [v, v]), t.style, (v) => edit(() => { t.style = v; }))));
+      if (['wipe', 'sweep'].includes(t.type)) gg.append(row('Direction', seg(DIRS.map((v) => [v, v]), t.dir, (v) => edit(() => { t.dir = v; }))));
+      gg.append(row('Order', select(ORDERS, t.order || 'auto', (v) => edit(() => { t.order = v; }, { rebuild: false }))));
+    }
+    ed.append(gg);
+  }
+  ed.append(h('div', { class: 'sec' }, 'Look'));
+  ed.append(row('Preset', select(['', ...Object.keys(PRESETS)], s.preset, (v) => edit(() => { s.preset = v; }, { rebuild: false }))));
+  ed.lastChild.querySelector('option').textContent = '(scene look)';
+}
+function move(k, d) {
+  const j = k + d; if (j < 0 || j >= D.shots.length) return;
+  [D.shots[k], D.shots[j]] = [D.shots[j], D.shots[k]];
+  if (D.shots[0].in.type === 'morph') D.shots[0].in = trDefaults('in', 'draw');   // nothing to morph from
+  sel = j; renderShots(); sync();
+}
+function remove(k) { D.shots.splice(k, 1); if (D.shots[0].in.type === 'morph') D.shots[0].in = trDefaults('in', 'draw'); sel = Math.min(sel, D.shots.length - 1); renderShots(); sync(); }
+$('addShot').onclick = () => { D.shots.splice(sel + 1, 0, newShot({ kind: 'text', text: 'Hello', in: trDefaults('in', 'morph'), fit: 0.75 })); sel++; renderShots(); sync(); };
+
+// ---------------------------------------------------------------- files: open / drop
+function openFile(accept, cb) { const f = $('fileIn'); f.accept = accept; f.value = ''; f.onchange = () => f.files[0] && cb(f.files[0]); f.click(); }
+const dataUrl = (file) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
+const kindOf = (f) => { const n = f.name.toLowerCase();
+  if (n.endsWith('.svg') || f.type === 'image/svg+xml') return 'svg'; if (/\.(ttf|otf)$/.test(n)) return 'font'; if (n.endsWith('.json')) return 'json';
+  if (f.type.startsWith('image/') || /\.(png|jpe?g|webp|gif)$/.test(n)) return 'png'; return null; };
+/** put a file into shot k (or a new shot after it when k is null) */
+async function useFile(file, k) {
+  const kind = kindOf(file); if (!kind) { status(`can't use ${file.name}`, true); return; }
+  if (kind === 'json') { try { importScene(JSON.parse(await file.text())); status(`opened ${file.name}`); } catch (e) { status('bad scene.json: ' + e.message, true); } return; }
+  if (k == null) { D.shots.splice(sel + 1, 0, newShot({ in: trDefaults('in', 'morph'), fit: 0.7 })); k = ++sel; }
+  const s = D.shots[k];
+  if (kind === 'svg') Object.assign(s, { kind: 'svg', svgFile: { name: file.name, text: await file.text() } });
+  if (kind === 'png') Object.assign(s, { kind: 'png', png: { name: file.name, url: URL.createObjectURL(file), dataUrl: await dataUrl(file) } });
+  if (kind === 'font') Object.assign(s, { kind: 'text', font: 'custom', fontFile: { name: file.name, url: URL.createObjectURL(file), dataUrl: await dataUrl(file) } });
+  sel = k; renderShots(); sync();
+}
+let dragDepth = 0;
+addEventListener('dragenter', (e) => { e.preventDefault(); dragDepth++; document.body.classList.add('dragging'); });
+addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove('dragging'); } });
+addEventListener('dragover', (e) => e.preventDefault());
+addEventListener('drop', async (e) => {   // first file replaces the selected shot's input, further files become new shots
+  e.preventDefault(); dragDepth = 0; document.body.classList.remove('dragging');
+  const files = [...(e.dataTransfer?.files || [])];
+  for (let i = 0; i < files.length; i++) await useFile(files[i], i === 0 && !e.shiftKey ? sel : null);
+});
+/** scene.json → doc (best effort: what this page wrote, or the examples) */
+function importScene(sp) {
+  const fr = Object.entries(FRAMES).find(([, f]) => f[0] === sp.width && f[1] === sp.height); if (fr) D.frame = fr[0];
+  D.transparent = sp.background === 'transparent'; if (/^#/.test(sp.background || '')) D.bg = sp.background;
+  for (const k of ['strokes', 'backdrop', 'wave']) if (sp[k] != null) D[k] = sp[k]; if (sp.dots != null) D.dotCount = sp.dots;
+  D.look = { ...LOOK_DEFAULT, ...(PRESETS[sp.look?.preset] || {}), ...(sp.look || {}) }; if (!/^#/.test(sp.background || '')) D.bg = D.look.bg;
+  const s0 = sp.shots?.[0] || {}; D.fx = (s0.fx || []).map((f) => (typeof f === 'number' ? FX[f] : f)); D.fxAmount = s0.fxAmount ?? 1; D.fxSpeed = s0.fxSpeed ?? 1;
+  const tr = (t, kind) => { if (!t) return trDefaults(kind, 'none'); if (typeof t === 'string') t = { type: t }; return { ...trDefaults(kind, t.type), ...t }; };
+  D.shots = sp.shots.map((s) => { const i = s.input, o = newShot({ duration: s.duration, fit: s.fit ?? 0.8, in: tr(s.in, 'in'), out: tr(s.out, 'out'), preset: s.look?.preset || '' });
+    if (i.baked || i.portrait) Object.assign(o, { kind: 'portrait', portrait: /girl/.test(i.baked || i.portrait) ? 'girl' : 'boy' });
+    else if (i.svg) { const m = /([a-z]+)\.svg$/.exec(i.svg); if (m && SAMPLES.includes(m[1])) Object.assign(o, { kind: 'svg', svgSample: m[1] }); else Object.assign(o, { kind: 'svg', svgFile: { name: 'scene.svg', text: i.svg } }); }
+    else if (i.png) Object.assign(o, { kind: 'png', png: { name: 'image', url: i.png, dataUrl: i.png } });
+    else Object.assign(o, { kind: 'text', text: String(i.text ?? ''), font: /Inter/.test(i.font || '') ? 'inter' : /^data:/.test(i.font || '') ? 'custom' : 'plex', fontFile: /^data:/.test(i.font || '') ? { name: 'font', url: i.font, dataUrl: i.font } : null });
+    return o; });
+  sel = 0; paintLook(); renderShots(); seek(0); sync();
+}
+
+// ---------------------------------------------------------------- exports (frame-exact: renderTime(i / fps) at the export size, then restore)
+const download = (blob, name) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60e3); };
+const yieldUI = () => new Promise((r) => setTimeout(r, 0));
+async function withExportSize(scale, alpha, fn) {
+  await sync();
+  if (!info) throw new Error('nothing loaded');
+  exporting = true; play(false);
+  const sp = eng.spec, keep = { background: sp.background, transparent: sp.transparent };
+  const W = Math.round(sp.width * scale / 2) * 2, H = Math.round(sp.height * scale / 2) * 2;
+  if (alpha) { sp.background = 'transparent'; sp.transparent = true; }
+  eng.setSize(W, H);
+  try { return await fn(W, H, sp.fps, sp.frames); }
+  finally { Object.assign(sp, keep); exporting = false; layout(); dirty = true; }
+}
+const btns = ['mp4', 'webm', 'save'];
+async function exportVideo(kind) {
+  if (exporting) return;
+  if (!('VideoEncoder' in window)) { $('recstat').textContent = 'this browser has no WebCodecs — use Chrome or Edge'; return; }
+  btns.forEach((b) => ($(b).disabled = true));
+  const t0 = performance.now();
+  try {
+    const res = await withExportSize(vscale, kind === 'webm', (W, H, FPS, N) => (kind === 'mp4' ? encodeMP4 : encodeWebM)(W, H, FPS, N));
+    download(res.blob, res.name);
+    $('recstat').textContent = `saved ${res.name} (${(res.blob.size / 1e6).toFixed(1)} MB, ${res.frames} frames, ${((performance.now() - t0) / 1000).toFixed(1)} s)`;
+    window.__lastExport = { name: res.name, frames: res.frames, bytes: res.blob.size, ms: performance.now() - t0 };
+  } catch (e) { $('recstat').textContent = 'export failed: ' + (e.message || e); window.__lastExport = { error: String(e.message || e) }; }
+  finally { btns.forEach((b) => ($(b).disabled = false)); }
+}
+const progress = async (i, N, what) => { if (i % 10 === 0) { $('recstat').textContent = `${what} ${Math.round(i / N * 100)}%`; await yieldUI(); } };
+const drain = async (enc) => { while (enc.encodeQueueSize > 4) await new Promise((r) => enc.addEventListener('dequeue', r, { once: true })); };
+
+async function encodeMP4(W, H, FPS, N) {   // H.264 from the canvas (opaque), as in v1
+  let cfg = null;
+  for (const codec of ['avc1.640033', 'avc1.640028', 'avc1.4d0033', 'avc1.42003e']) {
+    const c = { codec, width: W, height: H, bitrate: Math.round(20e6 * (W * H) / (1080 * 1920)), framerate: FPS };
+    if ((await VideoEncoder.isConfigSupported(c)).supported) { cfg = c; break; }
+  }
+  if (!cfg) throw new Error(`no H.264 encoder for ${W}x${H}`);
+  const { Muxer, ArrayBufferTarget } = await import('./vendor/mp4-muxer/mp4-muxer.mjs');
+  const muxer = new Muxer({ target: new ArrayBufferTarget(), video: { codec: 'avc', width: W, height: H, frameRate: FPS }, fastStart: 'in-memory' });
+  let err = null; const enc = new VideoEncoder({ output: (c, m) => muxer.addVideoChunk(c, m), error: (e) => (err = e) });
+  enc.configure(cfg);
+  for (let i = 0; i < N; i++) {
+    if (err) throw err;
+    eng.renderTime(i / FPS);
+    const vf = new VideoFrame(canvas, { timestamp: Math.round(i * 1e6 / FPS), duration: Math.round(1e6 / FPS), alpha: 'discard' });
+    enc.encode(vf, { keyFrame: i % (FPS * 2) === 0 }); vf.close();
+    await drain(enc); await progress(i, N, 'MP4');
+  }
+  await enc.flush(); if (err) throw err; muxer.finalize(); enc.close();
+  return { blob: new Blob([muxer.target.buffer], { type: 'video/mp4' }), name: `line-studio-${D.frame.replace(':', 'x')}-${W}x${H}.mp4`, frames: N };
+}
+
+// Chrome's WebCodecs refuses alpha: 'keep' (NotSupportedError), so alpha is encoded the way libvpx does it: a second VP9
+// stream whose luma IS the alpha plane, muxed as each block's BlockAdditional (BlockAddID 1). ffmpeg/Chrome/Safari decode it as yuva420p.
+async function encodeWebM(W, H, FPS, N) {
+  let codec = null;
+  for (const c of ['vp09.00.40.08', 'vp09.00.31.08', 'vp09.00.10.08']) if ((await VideoEncoder.isConfigSupported({ codec: c, width: W, height: H, bitrate: 8e6 })).supported) { codec = c; break; }
+  if (!codec) throw new Error(`no VP9 encoder for ${W}x${H}`);
+  const { Muxer, ArrayBufferTarget } = await import('./vendor/webm-muxer/webm-muxer.mjs');
+  const muxer = new Muxer({ target: new ArrayBufferTarget(), video: { codec: 'V_VP9', width: W, height: H, frameRate: FPS, alpha: true } });
+  const px = (W * H) / (1080 * 1920), cq = [], aq = [];
+  let err = null;
+  const pump = () => { while (cq.length && aq.length) { const [c, m] = cq.shift(), a = aq.shift(); const d = new Uint8Array(a.byteLength); a.copyTo(d); muxer.addVideoChunk(c, { ...(m || {}), alphaSideData: d }); } };
+  const ce = new VideoEncoder({ output: (c, m) => { cq.push([c, m]); pump(); }, error: (e) => (err = e) });
+  const ae = new VideoEncoder({ output: (c) => { aq.push(c); pump(); }, error: (e) => (err = e) });
+  ce.configure({ codec, width: W, height: H, bitrate: Math.round(14e6 * px), framerate: FPS });
+  ae.configure({ codec, width: W, height: H, bitrate: Math.round(5e6 * px), framerate: FPS });
+  const rgba = new Uint8Array(W * H * 4), yuv = new Uint8Array(W * H * 3 / 2), rowB = W * 4; yuv.fill(128, W * H);
+  for (let i = 0; i < N; i++) {
+    if (err) throw err;
+    eng.renderTime(i / FPS);
+    const { w, h, buf } = eng.readPixels();   // straight RGBA, bottom-up
+    if (w !== W || h !== H) throw new Error(`drawing buffer ${w}x${h} ≠ ${W}x${H}`);
+    for (let y = 0; y < H; y++) rgba.set(buf.subarray((H - 1 - y) * rowB, (H - y) * rowB), y * rowB);
+    for (let j = 0, n = W * H; j < n; j++) yuv[j] = rgba[j * 4 + 3];
+    const ts = Math.round(i * 1e6 / FPS), key = i % (FPS * 2) === 0;
+    const cf = new VideoFrame(rgba, { format: 'RGBA', codedWidth: W, codedHeight: H, timestamp: ts, duration: Math.round(1e6 / FPS) }); ce.encode(cf, { keyFrame: key }); cf.close();
+    const af = new VideoFrame(yuv, { format: 'I420', codedWidth: W, codedHeight: H, timestamp: ts, duration: Math.round(1e6 / FPS) }); ae.encode(af, { keyFrame: key }); af.close();
+    await drain(ce); await drain(ae); await progress(i, N, 'WebM');
+  }
+  await ce.flush(); await ae.flush(); pump(); if (err) throw err;
+  if (cq.length || aq.length) throw new Error(`colour/alpha streams out of step (${cq.length}/${aq.length} left)`);
+  muxer.finalize(); ce.close(); ae.close();
+  return { blob: new Blob([muxer.target.buffer], { type: 'video/webm' }), name: `line-studio-${D.frame.replace(':', 'x')}-${W}x${H}-alpha.webm`, frames: N };
+}
+$('mp4').onclick = () => exportVideo('mp4');
+$('webm').onclick = () => exportVideo('webm');
+$('save').onclick = async () => {
+  if (exporting) return;
+  try {
+    const t = T.t;
+    const blob = await withExportSize(1, false, async () => { eng.renderTime(t); return new Promise((r) => canvas.toBlob(r, 'image/png')); });
+    download(blob, `line-studio-${t.toFixed(2)}s${D.transparent ? '-alpha' : ''}.png`); $('recstat').textContent = `saved PNG at ${t.toFixed(2)} s`;
+  } catch (e) { $('recstat').textContent = 'PNG failed: ' + (e.message || e); }
+};
+// scene.json: the same scene, for `node render.mjs` (dropped files travel inside it as data: URLs)
+function sceneJson() { const { spec } = buildSpec({ forJson: true }); return JSON.stringify(spec, null, 1); }
+$('dlJson').onclick = () => { try { download(new Blob([sceneJson()], { type: 'application/json' }), 'scene.json'); } catch (e) { status(e.message, true); } };
+$('copyJson').onclick = async () => {
+  try { const txt = sceneJson();
+    try { await navigator.clipboard.writeText(txt); } catch { const ta = h('textarea', { value: txt }); document.body.append(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+    $('copyJson').textContent = 'Copied ✓'; setTimeout(() => ($('copyJson').textContent = 'Copy scene.json'), 1500);
+  } catch (e) { status(e.message, true); }
+};
+const paintCmd = () => { $('cmd').textContent = 'node render.mjs studio/scene.json --alpha --out x.mov'; };
+
+// ---------------------------------------------------------------- keys
+addEventListener('keydown', (e) => {
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) && e.target.type !== 'range') return;
+  if (e.key === 'h' || e.key === 'H') document.body.classList.toggle('hide');
+  else if (e.key === ' ') { e.preventDefault(); play(); }
+  else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); play(false); seek(T.t + (e.key === 'ArrowRight' ? 1 : -1) / fps()); }
+});
+
+// ---------------------------------------------------------------- go
+paintLook(); paintCmd(); renderShots(); play(T.playing);
+await sync();
+if (Q.has('t')) seek(+Q.get('t'), false);
+requestAnimationFrame(frame);
+// hooks for tests and for Claude driving the page
+window.studio = { eng, D, get info() { return info; }, get T() { return T; }, seek, play, sync, buildSpec, sceneJson, perf, importScene, useFile,
+  idle: async () => { while (syncing) await syncing; await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); }, renderShots, pick };
 window.__ready = true;
-if (!Q.has('capture')) (function loop() { if (!recording) { controls.update(); const t = (performance.now() - t0) / 1000; draw(performance.now() / 1000, t); } requestAnimationFrame(loop); })();
 </script>
 </body>
 </html>
