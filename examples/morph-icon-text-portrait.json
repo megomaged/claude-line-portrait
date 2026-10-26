@@ -1,0 +1,10 @@
+{
+  "width": 1080, "height": 1920, "fps": 30, "background": "#03060c", "backdrop": 0.5,
+  "look": { "preset": "ember" },
+  "shots": [
+    { "input": { "svg": "assets/heart.svg" }, "duration": 2.2, "fit": 0.55, "in": { "type": "draw", "dur": 1.3 } },
+    { "input": { "text": "نور", "font": "assets/IBMPlexSansArabic-Bold.ttf" }, "duration": 2.2, "fit": 0.6, "in": { "type": "morph", "dur": 1.2 } },
+    { "input": { "portrait": "/studio/data/boy" }, "duration": 3.6, "fit": 0.9, "in": { "type": "morph", "dur": 1.5 },
+      "fx": ["shimmer"], "camera": { "zoom": [1, 1.06] } }
+  ]
+}

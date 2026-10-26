@@ -1,0 +1,9 @@
+{
+  "width": 1080, "height": 1080, "fps": 30, "background": "transparent",
+  "strokes": 2500, "points": 8, "dots": 3000,
+  "look": { "preset": "claude" },
+  "shots": [
+    { "input": { "svg": "assets/spark.svg" }, "duration": 3.0, "fit": 0.6,
+      "in": { "type": "sting", "dur": 1.4 }, "out": { "type": "disperse", "style": "dust", "dur": 0.8 } }
+  ]
+}

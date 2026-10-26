@@ -1,0 +1,13 @@
+{
+  "width": 1080, "height": 1080, "fps": 30, "background": "transparent", "strokes": 3000, "points": 8, "dots": 3000,
+  "look": { "preset": "ice" },
+  "shots": [
+    { "id": "assemble-dust",   "input": { "svg": "assets/bolt.svg" },  "duration": 2.2, "fit": 0.55, "in": { "type": "assemble", "style": "dust" }, "out": { "type": "disperse", "style": "explode", "dur": 0.8 } },
+    { "id": "assemble-wind",   "input": { "svg": "assets/spark.svg" }, "duration": 2.2, "fit": 0.55, "in": { "type": "assemble", "style": "wind", "dur": 1.2 }, "out": { "type": "disperse", "style": "wind", "dur": 0.9 } },
+    { "id": "glitch",          "input": { "text": "GLITCH", "font": "assets/Inter-Variable.ttf" }, "duration": 2.0, "fit": 0.8, "in": { "type": "glitch" }, "out": { "type": "glitch" }, "look": { "preset": "neon" } },
+    { "id": "wipe",            "input": { "svg": "assets/heart.svg" }, "duration": 2.0, "fit": 0.55, "in": { "type": "wipe", "dir": "ltr" }, "out": { "type": "wipe", "dir": "ltr" }, "look": { "preset": "ember" } },
+    { "id": "sweep+heartbeat", "input": { "svg": "assets/heart.svg" }, "duration": 2.4, "fit": 0.55, "in": { "type": "sweep" }, "out": { "type": "draw", "dur": 0.8 }, "fx": ["heartbeat"], "look": { "preset": "rose" } },
+    { "id": "sting",           "input": { "svg": "assets/spark.svg" }, "duration": 2.4, "fit": 0.55, "in": { "type": "sting" }, "out": { "type": "fade" }, "look": { "preset": "claude" } },
+    { "id": "vortex",          "input": { "svg": "assets/bolt.svg" },  "duration": 2.2, "fit": 0.55, "in": { "type": "fade" }, "out": { "type": "disperse", "style": "vortex", "dur": 1.2 } }
+  ]
+}

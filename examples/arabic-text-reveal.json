@@ -1,0 +1,9 @@
+{
+  "width": 1080, "height": 1920, "fps": 30, "background": "#000000",
+  "look": { "preset": "gold" },
+  "shots": [
+    { "input": { "text": "خطوط من نور\nLines of light", "font": "assets/IBMPlexSansArabic-Bold.ttf" }, "duration": 4.0, "fit": 0.86,
+      "in": { "type": "draw", "dur": 2.2, "order": "rtl" }, "out": { "type": "wipe", "dir": "ltr", "dur": 0.7 },
+      "accents": [{ "type": "sweep", "at": 2.4 }] }
+  ]
+}

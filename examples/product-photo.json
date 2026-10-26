@@ -1,0 +1,5 @@
+{
+  "width": 1080, "height": 1350, "fps": 30, "background": "#000000",
+  "look": { "preset": "white", "glow": 0.45 },
+  "shots": [ { "input": { "image": "assets/baked/headphones" }, "duration": 4, "fit": 0.82, "in": { "type": "draw", "dur": 2.6, "order": "ttb" }, "out": { "type": "disperse", "style": "wind", "dur": 1.0 } } ]
+}
