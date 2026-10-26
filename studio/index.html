@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Line Portrait</title>
+<link rel="icon" href="data:,">
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/build/three.module.js", "three/addons/": "./vendor/three/jsm/" } }
+</script>
+<style>
+  :root { --ink: #e8f1f4; --dim: #8fa3ad; --line: rgba(255,255,255,.12); --panel: rgba(8,12,18,.78); --acc: #7fe3d6; }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font: 12px/1.4 ui-sans-serif, system-ui, -apple-system, sans-serif; color: var(--ink); }
+  canvas { display: block; }
+  #panel { position: fixed; top: 14px; right: 14px; width: 250px; max-height: calc(100% - 28px); overflow: auto; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 12px 14px; backdrop-filter: blur(10px); z-index: 2; }
+  #panel.hide { display: none; }
+  h1 { font-size: 11px; letter-spacing: .18em; margin: 0 0 10px; color: var(--dim); font-weight: 600; }
+  .sec { margin: 10px 0 4px; font-size: 10px; letter-spacing: .14em; color: var(--dim); text-transform: uppercase; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
+  .row label { flex: 0 0 74px; color: var(--dim); }
+  .row input[type=range] { flex: 1; accent-color: var(--acc); }
+  .seg { display: flex; flex-wrap: wrap; gap: 4px; }
+  .seg button, .btn { background: transparent; color: var(--ink); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; cursor: pointer; font: inherit; }
+  .seg button.on { background: var(--acc); color: #001; border-color: var(--acc); }
+  .btn { width: 100%; margin-top: 6px; }
+  input[type=color] { width: 34px; height: 22px; border: 0; background: none; padding: 0; }
+  #hint { position: fixed; left: 14px; bottom: 12px; color: var(--dim); font-size: 11px; pointer-events: none; z-index: 2; }
+  @media (max-width: 600px) { #panel { width: auto; left: 16px; right: 16px; top: auto; bottom: 16px; max-height: 45%; } }
+</style>
+</head>
+<body>
+<div id="panel">
+  <h1>LINE PORTRAIT</h1>
+  <div class="sec">Colour</div>
+  <div class="seg" id="preset">
+    <button data-v="white">White</button><button data-v="ember">Teal Fire</button><button data-v="rose">Lilac Rose</button><button data-v="gold">Gold</button><button data-v="neon">Neon</button>
+  </div>
+  <div class="row"><label>Mode</label><div class="seg" id="mode"><button data-v="0">Mono</button><button data-v="1">Gradient</button><button data-v="2">By light</button></div></div>
+  <div class="row"><label>Colours</label><input type="color" id="colA"><input type="color" id="colB"></div>
+  <div class="sec">Lines</div>
+  <div class="row"><label>Width</label><input type="range" id="width" min="0.3" max="3" step="0.05"></div>
+  <div class="row"><label>Brightness</label><input type="range" id="gain" min="0.3" max="3" step="0.05"></div>
+  <div class="row"><label>Contrast</label><input type="range" id="gamma" min="0.4" max="2.5" step="0.05"></div>
+  <div class="row"><label>Glow</label><input type="range" id="glow" min="0" max="2.5" step="0.05"></div>
+  <div class="row"><label>Particles</label><input type="range" id="dots" min="0" max="2" step="0.05"></div>
+  <div class="sec">Motion</div>
+  <div class="row"><label>Draw order</label><div class="seg" id="order"><button data-v="0">Top→down</button><button data-v="1">Random</button><button data-v="2">Centre out</button></div></div>
+  <div class="row"><label>Draw time</label><input type="range" id="dur" min="1" max="12" step="0.5"></div>
+  <div class="row"><label>Pulses</label><input type="range" id="pulse" min="0" max="2" step="0.05"></div>
+  <div class="row"><label>Pulse speed</label><input type="range" id="pspeed" min="0.1" max="3" step="0.05"></div>
+  <div class="row"><label>Breathe</label><input type="range" id="breathe" min="0" max="1" step="0.05"></div>
+  <div class="sec">Effects (mix any)</div>
+  <div class="seg" id="fx"><button data-v="0">Shimmer</button><button data-v="1">Scan</button><button data-v="2">Ripple</button><button data-v="3">Heartbeat</button><button data-v="4">Glitch</button><button data-v="5">Wind</button><button data-v="6">Dash flow</button><button data-v="7">Neon flicker</button><button data-v="8">Aurora</button><button data-v="9">Light sweep</button></div>
+  <div class="row"><label>Strength</label><input type="range" id="fxamt" min="0" max="2" step="0.05"></div>
+  <div class="row"><label>FX speed</label><input type="range" id="fxspeed" min="0.2" max="3" step="0.05"></div>
+  <div class="row"><label>Background</label><input type="color" id="bg"></div>
+  <div class="row"><label>BG lines</label><input type="range" id="bgl" min="0" max="2.5" step="0.05"></div>
+  <div class="row"><label>Wave motion</label><input type="range" id="wave" min="0" max="3" step="0.05"></div>
+  <div class="sec">Frame</div>
+  <div class="seg" id="frame"><button data-v="9:16">9:16</button><button data-v="4:5">4:5</button><button data-v="1:1">1:1</button><button data-v="16:9">16:9</button></div>
+  <button class="btn" id="replay">Replay drawing</button>
+  <button class="btn" id="save">Save PNG</button>
+  <div class="sec">Video</div>
+  <div class="row"><label>Seconds</label><input type="number" id="vsec" min="1" max="60" step="1" value="8" style="width:60px"></div>
+  <button class="btn" id="rec">Download video</button>
+  <div id="recstat" style="color:var(--dim);margin-top:6px;min-height:16px"></div>
+</div>
+<div id="hint">H = hide panel</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+const Q = new URLSearchParams(location.search);
+const DATA = './data/' + (Q.get('d') || 'boy') + '/';
+const PRESETS = {   // teal fire = teal-white lines with orange where the light is strongest
+  white: { a: '#ffffff', b: '#cfe6ff', mode: 0, glow: 0.45, gain: 1.0, bg: '#000000' },
+  ember: { a: '#8FE3D8', b: '#FF6A1A', mode: 2, glow: 0.7, gain: 0.85, bg: '#03060c' },
+  rose:  { a: '#CEAFEB', b: '#E77395', mode: 2, glow: 0.7, gain: 0.85, bg: '#0b0712' },
+  gold:  { a: '#ffd9a0', b: '#ff8a3d', mode: 1, glow: 0.6, gain: 0.9, bg: '#050302' },
+  neon:  { a: '#00e5ff', b: '#ff2bd6', mode: 1, glow: 0.8, gain: 0.9, bg: '#02000a' },
+};
+const S = { preset: Q.get('preset') || 'white', mode: 0, a: '#ffffff', b: '#cfe6ff', width: 1.0, gain: 1.0, gamma: 1.0, glow: 0.55, dots: 1.0,
+  order: 0, dur: 5, pulse: 0, pspeed: 1, breathe: 0, bg: '#000000', bgl: 0.6, wave: 1, fx: (Q.get('fx') || '').split(',').filter(Boolean).map(Number), fxamt: 1, fxspeed: 1, relief: 0, spin: 0, frame: Q.get('frame') || '9:16' };
+Object.assign(S, PRESETS[S.preset]);
+const hash = (i) => { let x = Math.imul(i ^ 0x9e3779b9, 0x85ebca6b); x ^= x >>> 13; x = Math.imul(x, 0xc2b2ae35); x ^= x >>> 16; return (x >>> 0) / 4294967296; };
+const getBin = async (f) => (await fetch(DATA + f)).arrayBuffer();
+
+const meta = await (await fetch(DATA + 'meta.json')).json();
+const IW = meta.width, IH = meta.height;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+document.body.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+const FOV = 30, camera = new THREE.PerspectiveCamera(FOV, 9 / 16, 1, IH * 40);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.enabled = false;   // the portrait stays put: no mouse rotate, pan or zoom
+
+// ---------- depth (near = bright), sampled per vertex; the 3D shape is built in the shader so the Depth slider is live ----------
+const depthAt = await (async () => {
+  if (!meta.depth) return () => 0.5;   // optional depth map (flat portraits have none)
+  try {
+    const img = new Image(); img.src = DATA + 'depth.png'; await img.decode();
+    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+    const g = c.getContext('2d'); g.drawImage(img, 0, 0); const d = g.getImageData(0, 0, c.width, c.height).data;
+    return (x, y) => { const u = Math.min(c.width - 1, Math.max(0, x / IW * c.width)), v = Math.min(c.height - 1, Math.max(0, y / IH * c.height));
+      const i0 = Math.floor(u), j0 = Math.floor(v), i1 = Math.min(c.width - 1, i0 + 1), j1 = Math.min(c.height - 1, j0 + 1), tx = u - i0, ty = v - j0;
+      const at = (i, j) => d[(j * c.width + i) * 4] / 255;
+      return (at(i0, j0) * (1 - tx) + at(i1, j0) * tx) * (1 - ty) + (at(i0, j1) * (1 - tx) + at(i1, j1) * tx) * ty; };
+  } catch { return () => 0.5; }   // no depth map → flat
+})();
+
+// ---------- polylines from the bake ----------
+const lb = await getBin('lines.bin'), ix = new Uint32Array(await getBin('lines_idx.bin'));
+const NV = meta.vertices, P = new Uint16Array(lb, 0, NV * 2), I8 = new Uint8Array(lb, NV * 4, NV), W8 = new Uint8Array(lb, NV * 5, NV);
+const polys = [];   // { x, y, i, w, d, f, bg }   d = depth 0..1, f = how much the vertex sits on the figure (1) vs the wave sheet (0)
+for (let p = 0; p + 1 < ix.length; p++) {
+  const a = ix[p], n = ix[p + 1] - a, q = { x: new Float32Array(n), y: new Float32Array(n), i: new Float32Array(n), w: new Float32Array(n), d: new Float32Array(n), f: new Float32Array(n).fill(1), bg: 0 };
+  for (let v = 0; v < n; v++) { q.x[v] = P[(a + v) * 2] / 4; q.y[v] = P[(a + v) * 2 + 1] / 4; q.i[v] = I8[a + v] / 255; q.w[v] = W8[a + v] / 16; q.d[v] = depthAt(q.x[v], q.y[v]); }
+  polys.push(q);
+}
+// the portrait lives inside a sheet of waves: it dissolves into them at its edges, and the waves run through it,
+// dimmer, bulging forward into the figure's own 3D shape — so from the side the figure is pushed out of the wave
+{
+  const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const fade = (x, y) => sm(0, 0.12 * IW, x) * sm(0, 0.12 * IW, IW - x) * sm(0, 0.06 * IH, y) * sm(0, 0.24 * IH, IH - y);
+  for (const q of polys) for (let v = 0; v < q.x.length; v++) { const f = fade(q.x[v], q.y[v]); q.i[v] *= f; q.f[v] = 0.35 + 0.65 * f; }
+  const C = 24, gw = Math.ceil(IW / C) + 1, gh = Math.ceil(IH / C) + 1;
+  const G = new Float32Array(gw * gh), cnt = new Float32Array(gw * gh);
+  for (const q of polys) for (let v = 0; v < q.x.length; v++) { const c = Math.floor(q.y[v] / C) * gw + Math.floor(q.x[v] / C); G[c] += q.i[v]; cnt[c]++; }
+  for (let c = 0; c < G.length; c++) G[c] = cnt[c] ? Math.min(1, G[c] / cnt[c] * 2.2 + 0.35) : 0;
+  for (let r = 0; r < 4; r++) { const g2 = G.slice(); for (let y = 1; y < gh - 1; y++) for (let x = 1; x < gw - 1; x++) { const c = y * gw + x; G[c] = (g2[c] * 4 + g2[c - 1] + g2[c + 1] + g2[c - gw] + g2[c + gw]) / 8; } }
+  const fig = (x, y) => { if (x < 0 || y < 0 || x >= IW || y >= IH) return 0; const fx = x / C, fy = y / C, i0 = Math.floor(fx), j0 = Math.floor(fy), tx = fx - i0, ty = fy - j0;
+    const g = (a, b) => G[Math.min(gh - 1, b) * gw + Math.min(gw - 1, a)];
+    return ((g(i0, j0) * (1 - tx) + g(i0 + 1, j0) * tx) * (1 - ty) + (g(i0, j0 + 1) * (1 - tx) + g(i0 + 1, j0 + 1) * tx) * ty) * fade(x, y); };
+  // each wave is y0 + a smooth function of (x, y0) that changes slowly with y0, so neighbours never cross or pile up
+  const wave = (x, y0) => 0.022 * IH * Math.sin(x * 0.0021 + y0 * 0.0019 + 0.6) + 0.012 * IH * Math.sin(x * 0.0047 - y0 * 0.0031 + 2.1) + 0.006 * IH * Math.sin(x * 0.0093 + y0 * 0.004);
+  const X0 = -IW * 1.7, X1 = IW * 2.7, Y0 = -IH * 0.3, Y1 = IH * 1.3, SP = IH / 115, STEP = 7;   // wide enough for a 16:9 frame
+  for (let k = 0, y0 = Y0; y0 < Y1; y0 += SP, k++) {
+    const gain = 0.16 + 0.12 * hash(k + 3), xs = [], ys = [], is = [], ds = [], fs = [];
+    for (let x = X0; x < X1; x += STEP) { const y0w = y0 + wave(x, y0), f = Math.min(1, fig(x, y0w) * 1.3), y = y0w - 0.018 * IH * f; xs.push(x); ys.push(y);   // the figure lifts the waves that run through it
+      is.push(gain * (1 - 0.8 * f)); ds.push(0.5); fs.push(0); }
+    polys.push({ x: Float32Array.from(xs), y: Float32Array.from(ys), i: Float32Array.from(is), w: new Float32Array(xs.length).fill(0.8), d: Float32Array.from(ds), f: Float32Array.from(fs), bg: 1 });
+  }
+}
+
+// ---------- instanced segments: one geometry for the figure (turns in 3D), one for the wave backdrop (stays facing the camera) ----------
+const cx = IW / 2, cy = IH * 0.42, R = Math.hypot(IW, IH) / 2;
+function makeGeo(list) {
+let NS = 0; for (const q of list) NS += q.x.length - 1;
+const aAB = new Float32Array(NS * 4), aI = new Float32Array(NS * 4), aKey = new Float32Array(NS * 4), aS = new Float32Array(NS * 2), aBg = new Float32Array(NS), aDF = new Float32Array(NS * 4);
+let si = 0;
+list.forEach((q, p) => {
+  const n = q.x.length; let len = 0; const cum = [0];
+  for (let v = 1; v < n; v++) { len += Math.hypot(q.x[v] - q.x[v - 1], q.y[v] - q.y[v - 1]); cum.push(len); }
+  let ymin = 1e9, mx = 0, my = 0; for (let v = 0; v < n; v++) { ymin = Math.min(ymin, q.y[v]); mx += q.x[v]; my += q.y[v]; }
+  mx /= n; my /= n;
+  const kTop = Math.min(1, Math.max(0, ymin / IH)) * 0.85, kRnd = hash(p) * 0.85, kCtr = Math.min(1, Math.hypot(mx - cx, my - cy) / R) * 0.85;
+  const phase = hash(p + 991) * 1000;
+  for (let v = 0; v + 1 < n; v++, si++) {
+    aAB.set([q.x[v], q.y[v], q.x[v + 1], q.y[v + 1]], si * 4);
+    aI.set([q.i[v], q.i[v + 1], q.w[v], q.w[v + 1]], si * 4);
+    aDF.set([q.d[v], q.d[v + 1], q.f[v], q.f[v + 1]], si * 4);
+    aKey.set([kTop, kRnd, kCtr, (cum[v] + cum[v + 1]) / 2 / Math.max(1, len)], si * 4);
+    aS.set([cum[v] + phase, cum[v + 1] + phase], si * 2); aBg[si] = q.bg;
+  }
+});
+const quad = new THREE.InstancedBufferGeometry();
+quad.setAttribute('position', new THREE.Float32BufferAttribute([0, -1, 0, 1, -1, 0, 1, 1, 0, 0, 1, 0], 3));
+quad.setIndex([0, 1, 2, 0, 2, 3]);
+for (const [k, arr, n] of [['ab', aAB, 4], ['iw', aI, 4], ['df', aDF, 4], ['key', aKey, 4], ['sArc', aS, 2], ['bgf', aBg, 1]]) quad.setAttribute(k, new THREE.InstancedBufferAttribute(arr, n));
+quad.instanceCount = NS;
+return quad;
+}
+
+const U = { uRes: { value: new THREE.Vector2(1, 1) }, uWidth: { value: 1 }, uGain: { value: 1 }, uGamma: { value: 1 }, uA: { value: new THREE.Color() }, uB: { value: new THREE.Color() },
+  uMode: { value: 0 }, uProg: { value: 0 }, uOrder: { value: 0 }, uT: { value: 0 }, uPulse: { value: 0 }, uPSpeed: { value: 1 }, uBreathe: { value: 0 },
+  uH: { value: IH }, uIW: { value: IW }, uBgGain: { value: 1 }, uWave: { value: 1 }, uRelief: { value: 0.3 }, uDots: { value: 1 },
+  uFx: { value: new Array(10).fill(0) }, uFxAmt: { value: 1 }, uFxSpeed: { value: 1 } };
+// image px (x right, y down) + depth → world (centred, y up, z toward the viewer). Shared by lines and particles.
+const WORLD = /* glsl */`
+  uniform float uH, uIW, uRelief, uWave, uT, uFx[10], uFxAmt, uFxSpeed;
+  float h1(float n){ return fract(sin(n) * 43758.5453); }
+  vec2 fxPos(vec2 xy, float bg){
+    float T = uT * uFxSpeed;
+    if (uFx[4] > 0.5) {   // glitch: random horizontal slices jump sideways for a beat
+      float sl = floor(xy.y / (uH * 0.035)), k = floor(T * 9.0), g = step(0.9, h1(sl * 7.13 + k * 3.7));
+      xy.x += g * (h1(sl + k * 1.31) - 0.5) * 0.08 * uIW * uFxAmt; }
+    if (uFx[5] > 0.5 && bg < 0.5) {   // wind: the farther from the face, the more hair and edges sway
+      vec2 c = vec2(uIW * 0.5, uH * 0.38); float d = clamp(length((xy - c) / vec2(uIW * 0.5, uH * 0.5)), 0.0, 1.5), w = d * d;
+      xy.x += w * uIW * 0.025 * uFxAmt * (sin(T * 1.7 + xy.y * 0.006) + 0.5 * sin(T * 3.1 + xy.y * 0.017));
+      xy.y += w * uH * 0.006 * uFxAmt * sin(T * 2.3 + xy.x * 0.01); }
+    return xy; }
+  vec3 world(vec2 xy, float d, float f, float bg){
+    xy = fxPos(xy, bg);
+    float zw = -0.5 * uRelief * uH + 0.03 * uH * sin(xy.x * 0.0017 + xy.y * 0.0023 + 0.8);   // the wave sheet, at the figure's back
+    float zf = (d - 0.5) * uRelief * uH;                                                       // the figure's relief
+    vec3 p = vec3(xy.x - uIW * 0.5, uH * 0.5 - xy.y, mix(zw, zf, f));
+    float sw = uWave * uH * (0.006 + 0.004 * bg) * sin(xy.x * 0.0026 - uT * 0.9 + xy.y * 0.0012) + uWave * uH * 0.003 * sin(xy.x * 0.0061 + uT * 0.6);
+    p.y += sw; p.z += sw * 1.5;                                                                 // the swell moves waves and figure together
+    return p; }`;
+const COLOR = /* glsl */`
+  uniform vec3 uA, uB; uniform float uMode, uGain, uGamma, uH;
+  vec3 tint(float inten, float y){
+    float l = pow(clamp(inten, 0.0, 1.0), uGamma);
+    vec3 c = uMode < 0.5 ? uA : (uMode < 1.5 ? mix(uA, uB, clamp(y / uH, 0.0, 1.0)) : mix(uA, uB, smoothstep(0.7, 1.0, l)));
+    return c * l * uGain; }`;
+const lineMat = new THREE.ShaderMaterial({ uniforms: U, side: THREE.DoubleSide, transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending,
+  vertexShader: /* glsl */`${WORLD}
+    attribute vec4 ab, iw, df, key; attribute vec2 sArc; attribute float bgf;
+    uniform vec2 uRes; uniform float uWidth, uProg, uOrder, uPulse, uPSpeed, uBreathe, uBgGain;
+    varying float vI, vAcross, vVis, vS, vY, vHalf, vX, vR, vBg;
+    void main(){
+      vec4 ca = projectionMatrix * modelViewMatrix * vec4(world(ab.xy, df.x, df.z, bgf), 1.0);
+      vec4 cb = projectionMatrix * modelViewMatrix * vec4(world(ab.zw, df.y, df.w, bgf), 1.0);
+      vec2 sa = ca.xy / ca.w * 0.5 * uRes, sb = cb.xy / cb.w * 0.5 * uRes, d = sb - sa;
+      float L = length(d); vec2 t = L > 1e-4 ? d / L : vec2(1.0, 0.0), n = vec2(-t.y, t.x);
+      vec4 c = mix(ca, cb, position.x);
+      float pxPerUnit = 0.5 * uRes.y * projectionMatrix[1][1] / max(c.w, 1e-3);
+      float halfPx = max(0.75, mix(iw.z, iw.w, position.x) * uWidth * pxPerUnit * 0.5 + 0.6);   // screen-space width: stays a crisp line at any angle
+      c.xy += (n * position.y + t * (position.x * 2.0 - 1.0)) * halfPx / (0.5 * uRes) * c.w;
+      gl_Position = (ca.w <= 0.0 || cb.w <= 0.0) ? vec4(0.0, 0.0, -2.0, 1.0) : c;
+      vI = mix(iw.x, iw.y, position.x) * mix(1.0, uBgGain, bgf); vAcross = position.y; vHalf = halfPx;
+      float k0 = uOrder < 0.5 ? key.x : (uOrder < 1.5 ? key.y : key.z);
+      vVis = smoothstep(0.0, 0.004, uProg * 1.15 - (k0 + key.w * 0.15));   // each line draws from its start to its end
+      vS = mix(sArc.x, sArc.y, position.x); vY = mix(ab.y, ab.w, position.x); vX = mix(ab.x, ab.z, position.x); vR = key.y; vBg = bgf;
+      vI *= 1.0 + uBreathe * 0.25 * sin(uT * 1.3 + vY * 0.01 + ab.x * 0.004); }`,
+  fragmentShader: /* glsl */`${COLOR}
+    uniform float uT, uPulse, uPSpeed, uIW, uFx[10], uFxAmt, uFxSpeed; varying float vI, vAcross, vVis, vS, vY, vHalf, vX, vR, vBg;
+    float h1(float n){ return fract(sin(n) * 43758.5453); }
+    vec3 hsv(float h){ return clamp(abs(mod(h * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0); }
+    void main(){
+      float edge = 1.0 - smoothstep(max(0.0, 1.0 - 1.2 / vHalf), 1.0, abs(vAcross));
+      float pulse = uPulse * pow(max(0.0, sin((vS - uT * 160.0 * uPSpeed) * 0.012)), 24.0) * 2.5;   // light running along each line
+      vec3 col = tint(vI, vY);
+      float T = uT * uFxSpeed, A = uFxAmt, fig = 1.0 - vBg, add = 0.0, mul = 1.0; vec2 uv = vec2(vX / uIW, vY / uH);
+      if (uFx[0] > 0.5) add += A * pow(max(0.0, sin(T * 5.0 + vR * 700.0 + vS * 0.03)), 40.0) * 3.0;                        // shimmer: sparkles run along the lines
+      if (uFx[1] > 0.5) { float p = mod(T * 0.22, 1.4) - 0.2; add += A * exp(-pow((uv.y - p) / 0.025, 2.0)) * 2.0; }        // scan: a bright band sweeps top to bottom
+      if (uFx[2] > 0.5) { float d = length((vec2(vX, vY) - vec2(uIW * 0.5, uH * 0.38)) / uH), r = mod(T * 0.3, 1.2);
+        add += A * exp(-pow((d - r) / 0.018, 2.0)) * 2.0 * (1.0 - r / 1.2); }                                              // ripple: rings of light leave the face
+      if (uFx[3] > 0.5) { float b = fract(T / 1.1); mul *= 1.0 + A * fig * (1.2 * exp(-pow((b - 0.05) / 0.035, 2.0)) + 0.8 * exp(-pow((b - 0.24) / 0.035, 2.0))); }   // heartbeat: lub-dub
+      if (uFx[6] > 0.5) mul *= mix(1.0, step(0.45, fract((vS - T * 140.0) / 28.0)) * 1.6, clamp(A, 0.0, 1.0));             // dash flow: marching dashes
+      if (uFx[7] > 0.5) { float k = floor(T * 14.0), off = step(0.9, h1(vR * 977.0 + k)), glob = step(0.97, h1(k * 1.7));
+        mul *= 1.0 - min(1.0, A) * 0.9 * max(off, glob * 0.7); }                                                           // neon flicker
+      if (uFx[8] > 0.5) { float L = dot(col, vec3(0.3, 0.59, 0.11)); col = mix(col, hsv(fract(uv.y * 0.7 + uv.x * 0.3 - T * 0.08)) * L * 1.5, clamp(A * 0.8, 0.0, 1.0)); }   // aurora
+      if (uFx[9] > 0.5) { float p = mod(T * 0.28, 1.8) - 0.4; add += A * exp(-pow(((uv.x * 0.6 + uv.y * 0.4) - p) / 0.03, 2.0)) * 2.5; }   // light sweep: a diagonal shine
+      vec3 c = col * (1.0 + pulse) * mul + uB * pulse * 0.35 * vI + mix(uA, vec3(1.0), 0.5) * add * max(vI, 0.15) * uGain;
+      gl_FragColor = vec4(c * edge * vVis, 1.0); }`,
+});
+const lines = new THREE.Mesh(makeGeo(polys.filter((q) => !q.bg)), lineMat); lines.frustumCulled = false; scene.add(lines);
+// the backdrop rides with the camera, so turning the figure never shows the edge of the wave field
+const backdrop = new THREE.Mesh(makeGeo(polys.filter((q) => q.bg)), lineMat); backdrop.frustumCulled = false;
+scene.add(camera); camera.add(backdrop);
+
+// ---------- particles ----------
+const db = await getBin('dots.bin'), ND = meta.dots;
+const dp = new Uint16Array(db, 0, ND * 2), di = new Uint8Array(db, ND * 4, ND), dr = new Uint8Array(db, ND * 5, ND);
+const dpos = new Float32Array(ND * 3), dat = new Float32Array(ND * 4);
+for (let i = 0; i < ND; i++) { const x = dp[i * 2] / 4, y = dp[i * 2 + 1] / 4; dpos.set([x, y, 0], i * 3); dat.set([di[i] / 255, dr[i] / 16, hash(i + 5), depthAt(x, y)], i * 4); }
+const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.BufferAttribute(dpos, 3)); dg.setAttribute('dat', new THREE.BufferAttribute(dat, 4));
+const dotMat = new THREE.ShaderMaterial({ uniforms: U, transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending,
+  vertexShader: /* glsl */`${WORLD} attribute vec4 dat; uniform vec2 uRes; uniform float uProg, uDots; varying float vI, vY, vA;
+    void main(){ vI = dat.x * (0.7 + 0.3 * sin(uT * (1.0 + 2.0 * dat.z) + dat.z * 60.0)); vY = position.y;
+      vA = uDots * smoothstep(dat.z * 0.9, dat.z * 0.9 + 0.1, uProg);
+      vec4 c = projectionMatrix * modelViewMatrix * vec4(world(position.xy, dat.w, 1.0, 0.0), 1.0); gl_Position = c;
+      gl_PointSize = max(1.0, dat.y * uRes.y * projectionMatrix[1][1] / max(c.w, 1e-3) + 1.0); }`,
+  fragmentShader: /* glsl */`${COLOR} varying float vI, vY, vA;
+    void main(){ float r = length(gl_PointCoord - 0.5) * 2.0; if (r > 1.0) discard; gl_FragColor = vec4(tint(vI, vY) * (1.0 - r * r) * vA, 1.0); }` });
+const dots = new THREE.Points(dg, dotMat); dots.frustumCulled = false; scene.add(dots);
+
+// ---------- post: bloom = the glow ----------
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.5, 0.35, 0.12);
+composer.addPass(bloom); composer.addPass(new OutputPass());
+
+// ---------- frame + camera ----------
+const FRAMES = { '9:16': [1080, 1920], '4:5': [1080, 1350], '1:1': [1080, 1080], '16:9': [1920, 1080] };
+let recording = false;
+function frontDistance(aspect) {   // distance at which the portrait fills ~86% of the frame
+  const t = Math.tan(FOV / 2 * Math.PI / 180);
+  return Math.max(IH / 2 / t, IW / 2 / (t * aspect)) / 0.86;
+}
+function front() {
+  const d = frontDistance(camera.aspect);
+  camera.position.set(0, 0, d); controls.target.set(0, 0, 0); controls.update();
+  backdrop.position.set(0, 0, -d);   // same distance as the portrait in front view, so the waves line up with it there
+}
+function setSize(w, h, css = true) {
+  renderer.setSize(w, h, css); composer.setSize(w, h);
+  const pr = renderer.getPixelRatio(); U.uRes.value.set(w * pr, h * pr);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+function layout() {   // canvas = the chosen frame, as big as the window allows, centred
+  const [fw, fh] = FRAMES[S.frame], k = Math.min(innerWidth / fw, innerHeight / fh), cw = Math.floor(fw * k), ch = Math.floor(fh * k);
+  const was = camera.aspect; setSize(cw, ch);
+  Object.assign(renderer.domElement.style, { position: 'fixed', left: (innerWidth - cw) / 2 + 'px', top: (innerHeight - ch) / 2 + 'px' });
+  if (Math.abs(was - camera.aspect) > 1e-3) front();
+}
+addEventListener('resize', () => { if (!recording) layout(); });
+
+// ---------- panel ----------
+const $ = (id) => document.getElementById(id);
+const SLIDERS = ['width', 'gain', 'gamma', 'glow', 'dots', 'dur', 'pulse', 'pspeed', 'breathe', 'bgl', 'wave', 'fxamt', 'fxspeed'];
+function apply() {
+  U.uA.value.set(S.a); U.uB.value.set(S.b); U.uMode.value = S.mode; U.uWidth.value = S.width; U.uGain.value = S.gain; U.uGamma.value = S.gamma;
+  U.uOrder.value = S.order; U.uPulse.value = S.pulse; U.uPSpeed.value = S.pspeed; U.uBreathe.value = S.breathe; U.uDots.value = S.dots;
+  U.uBgGain.value = S.bgl; U.uWave.value = S.wave; U.uRelief.value = S.relief;
+  for (let k = 0; k < 10; k++) U.uFx.value[k] = S.fx.includes(k) ? 1 : 0; U.uFxAmt.value = S.fxamt; U.uFxSpeed.value = S.fxspeed;
+  for (const b of $('fx').querySelectorAll('button')) b.classList.toggle('on', S.fx.includes(+b.dataset.v));
+  bloom.strength = S.glow; scene.background = new THREE.Color(S.bg); document.body.style.background = S.bg;
+  for (const [id, key] of [['colA', 'a'], ['colB', 'b'], ['bg', 'bg']]) $(id).value = S[key];
+  for (const id of SLIDERS) $(id).value = S[id];
+  for (const [seg, key] of [['preset', 'preset'], ['mode', 'mode'], ['order', 'order'], ['frame', 'frame']]) for (const b of $(seg).querySelectorAll('button')) b.classList.toggle('on', String(S[key]) === b.dataset.v);
+}
+for (const b of $('preset').querySelectorAll('button')) b.onclick = () => { S.preset = b.dataset.v; Object.assign(S, PRESETS[S.preset]); apply(); };
+for (const b of $('mode').querySelectorAll('button')) b.onclick = () => { S.mode = +b.dataset.v; S.preset = ''; apply(); };
+for (const b of $('order').querySelectorAll('button')) b.onclick = () => { S.order = +b.dataset.v; apply(); replay(); };
+for (const b of $('fx').querySelectorAll('button')) b.onclick = () => { const v = +b.dataset.v; S.fx = S.fx.includes(v) ? S.fx.filter((x) => x !== v) : [...S.fx, v]; apply(); };
+for (const b of $('frame').querySelectorAll('button')) b.onclick = () => { S.frame = b.dataset.v; apply(); layout(); };
+for (const [id, key] of [['colA', 'a'], ['colB', 'b'], ['bg', 'bg']]) $(id).oninput = (e) => { S[key] = e.target.value; S.preset = ''; apply(); };
+for (const id of SLIDERS) $(id).oninput = (e) => { S[id] = +e.target.value; apply(); };
+let t0 = performance.now();
+function replay() { t0 = performance.now(); }
+$('replay').onclick = replay;
+$('save').onclick = () => { composer.render(); const a = document.createElement('a'); a.download = 'line-portrait.png'; a.href = renderer.domElement.toDataURL('image/png'); a.click(); };
+addEventListener('keydown', (e) => { if (e.key === 'h' || e.key === 'H') $('panel').classList.toggle('hide'); });
+
+// ---------- video: every frame is rendered at its exact time (frame / 30 s) and encoded with WebCodecs into an MP4,
+// so the file never stutters however slow the machine is; it renders at the frame's own size, not the window's ----------
+$('rec').onclick = async () => {
+  if (recording) return;
+  if (!('VideoEncoder' in window)) { $('recstat').textContent = 'this browser has no WebCodecs — use Chrome or Edge'; return; }
+  recording = true;
+  const secs = Math.max(1, Math.min(60, +$('vsec').value || 8)), FPS = 30, N = Math.round(secs * FPS);
+  const [vw, vh] = FRAMES[S.frame], drawDur = Math.min(S.dur, Math.max(0.5, secs - 1));   // the drawing always finishes ~1 s before the end
+  const pr = renderer.getPixelRatio(), cam0 = camera.position.clone(), tgt = controls.target.clone(), rel = cam0.clone().sub(tgt);
+  try {
+    let cfg = null;
+    for (const codec of ['avc1.640033', 'avc1.640028', 'avc1.4d0033', 'avc1.42003e']) {
+      const c = { codec, width: vw, height: vh, bitrate: 20e6, framerate: FPS };
+      if ((await VideoEncoder.isConfigSupported(c)).supported) { cfg = c; break; }
+    }
+    if (!cfg) throw new Error('no H.264 encoder for ' + vw + 'x' + vh);
+    const { Muxer, ArrayBufferTarget } = await import('./vendor/mp4-muxer/mp4-muxer.mjs');
+    const muxer = new Muxer({ target: new ArrayBufferTarget(), video: { codec: 'avc', width: vw, height: vh, frameRate: FPS }, fastStart: 'in-memory' });
+    let encErr = null;
+    const enc = new VideoEncoder({ output: (chunk, m) => muxer.addVideoChunk(chunk, m), error: (e) => { encErr = e; } });
+    enc.configure(cfg);
+    // render at exactly vw x vh (pixel ratio 1), whatever the screen's pixel density or the window's size
+    renderer.setPixelRatio(1); composer.setPixelRatio(1); setSize(vw, vh, false);
+    for (let i = 0; i < N; i++) {
+      if (encErr) throw encErr;
+      const t = i / FPS, yaw = S.spin * t * Math.PI / 180;
+      camera.position.copy(tgt).add(rel.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw)); camera.lookAt(tgt);
+      U.uT.value = t; U.uProg.value = Math.min(1, t / drawDur); composer.render();
+      const vf = new VideoFrame(renderer.domElement, { timestamp: Math.round(i * 1e6 / FPS), duration: Math.round(1e6 / FPS) });
+      enc.encode(vf, { keyFrame: i % (FPS * 2) === 0 }); vf.close();
+      if (enc.encodeQueueSize > 6) await new Promise((r) => enc.addEventListener('dequeue', r, { once: true }));
+      if (i % 10 === 0) { $('recstat').textContent = `rendering ${Math.round(i / N * 100)}%`; await new Promise((r) => setTimeout(r, 0)); }
+    }
+    await enc.flush(); muxer.finalize(); enc.close();
+    const blob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `line-portrait-${secs}s-${vw}x${vh}.mp4`; a.click();
+    $('recstat').textContent = `saved ${a.download} (${(blob.size / 1e6).toFixed(1)} MB)`;
+  } catch (e) {
+    console.error(e); $('recstat').textContent = 'video failed: ' + (e.message || e);
+  } finally {
+    renderer.setPixelRatio(pr); composer.setPixelRatio(pr); camera.position.copy(cam0); controls.target.copy(tgt); recording = false; layout(); controls.update();
+    t0 = performance.now() - S.dur * 1000;
+  }
+};
+
+apply(); layout(); front();
+
+// ---------- loop (or one exact frame: window.renderAt(seconds)) ----------
+function draw(t, tDraw) { U.uT.value = t; U.uProg.value = Math.min(1, tDraw / S.dur); composer.render(); }
+window.renderAt = (sec, yawDeg = 0) => { front(); if (yawDeg) { camera.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), yawDeg * Math.PI / 180); camera.lookAt(0, 0, 0); } draw(sec, sec); return sec; };
+window.__ready = true;
+if (!Q.has('capture')) (function loop() { if (!recording) { controls.update(); const t = (performance.now() - t0) / 1000; draw(performance.now() / 1000, t); } requestAnimationFrame(loop); })();
+</script>
+</body>
+</html>
