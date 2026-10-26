@@ -1,0 +1,10 @@
+{
+  "name": "claude-line-portrait",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Line + particle motion engine: portraits, images, icons, logos and text as light lines, with transitions and alpha video output.",
+  "license": "MIT",
+  "scripts": { "render": "node render.mjs" },
+  "dependencies": { "puppeteer-core": "^24.0.0", "harfbuzzjs": "^0.4.0" }
+}
