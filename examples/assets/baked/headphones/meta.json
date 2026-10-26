@@ -1,0 +1,15 @@
+{
+ "source": "headphones.png",
+ "width": 1024,
+ "height": 1536,
+ "polylines": 1782,
+ "vertices": 9121,
+ "dots": 7000,
+ "method": "image",
+ "subject": [
+  48,
+  136,
+  978,
+  1310
+ ]
+}
