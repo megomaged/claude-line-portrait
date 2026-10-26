@@ -151,10 +151,26 @@ function trDefaults(kind, type) {
   const t = normalize({ shots }).shots[1][kind]; return { type, dur: t.dur ?? 0, ease: t.ease || 'outCubic', style: t.style, dir: t.dir, order: 'auto' };
 }
 
+// ---------------------------------------------------------------- camera moves (per shot, scaled by Strength)
+// frame = 1 unit tall: pan 0.06 = 6% of the frame; yaw/pitch/roll in degrees; every move runs over the whole shot
+const CAMS = {
+  static:    { label: 'Static',        f: () => ({}) },
+  push:      { label: 'Push in',       f: (a) => ({ zoom: [1, 1 + 0.3 * a] }) },
+  pull:      { label: 'Pull out',      f: (a) => ({ zoom: [1 + 0.35 * a, 1] }) },
+  face:      { label: 'Face push',     f: (a) => ({ zoom: [1, 1 + 0.7 * a], pan: [[0, 0], [0, 0.13 * a]], ease: 'inOutCubic' }) },
+  crash:     { label: 'Crash zoom',    f: (a) => ({ zoom: [1 - 0.2 * a, 1 + 0.35 * a], ease: 'outExpo' }) },
+  pan:       { label: 'Pan →',         f: (a) => ({ pan: [[-0.1 * a, 0], [0.1 * a, 0]], zoom: 1 + 0.22 * a }) },
+  tilt:      { label: 'Tilt up',       f: (a) => ({ pan: [[0, -0.1 * a], [0, 0.1 * a]], zoom: 1 + 0.22 * a }) },
+  orbit:     { label: 'Orbit',         f: (a) => ({ yaw: [-24 * a, 24 * a], zoom: 1 + 0.06 * a }) },
+  dutch:     { label: 'Dutch roll',    f: (a) => ({ roll: [-7 * a, 7 * a], zoom: [1 + 0.08 * a, 1 + 0.2 * a] }) },
+  reveal:    { label: 'Rise reveal',   f: (a) => ({ zoom: [1 + 0.6 * a, 1], pitch: [22 * a, 0], ease: 'outCubic' }) },
+  float:     { label: 'Float',         f: (a) => ({ yaw: [-10 * a, 10 * a], pitch: [6 * a, -6 * a], zoom: [1 + 0.04 * a, 1 + 0.14 * a] }) },
+};
+
 // ---------------------------------------------------------------- the document
 let uid = 1;
-const newShot = (o) => ({ id: uid++, kind: 'text', portrait: 'boy', svgSample: 'heart', svgFile: null, png: null, text: 'Hello', font: 'plex', fontFile: null,
-  duration: 3, fit: 0.8, in: trDefaults('in', 'draw'), out: trDefaults('out', 'none'), preset: '', ...o });
+const newShot = (o) => ({ id: uid++, kind: 'text', portrait: 'boy', svgSample: 'heart', svgFile: null, png: null, trace: 'auto', text: 'Hello', font: 'plex', fontFile: null,
+  duration: 3, fit: 0.8, cam: 'static', camAmt: 1, in: trDefaults('in', 'draw'), out: trDefaults('out', 'none'), preset: '', ...o });
 const presetName = PRESETS[Q.get('preset')] ? Q.get('preset') : 'ember';
 const fxQ = (Q.get('fx') || '').split(',').filter(Boolean).map((v) => (/^\d+$/.test(v) ? FX[+v] : v)).filter((v) => FX.includes(v));
 const D = {
@@ -163,7 +179,7 @@ const D = {
   shots: [   // the demo: logo sting → morph to Arabic text → morph to a portrait
     newShot({ kind: 'svg', svgSample: 'spark', duration: 2.6, fit: 0.55, in: trDefaults('in', 'sting') }),
     newShot({ kind: 'text', text: 'خطوط من نور', duration: 2.8, fit: 0.85, in: trDefaults('in', 'morph') }),
-    newShot({ kind: 'portrait', portrait: Q.get('d') === 'girl' ? 'girl' : 'boy', duration: 4, fit: 0.92, in: { ...trDefaults('in', 'morph'), dur: 1.6 } }),
+    newShot({ kind: 'portrait', portrait: /^[\w-]+$/.test(Q.get('d') || '') ? Q.get('d') : 'boy', duration: 4, fit: 0.92, in: { ...trDefaults('in', 'morph'), dur: 1.6 } }),
   ],
 };
 let sel = 0;
@@ -172,7 +188,7 @@ let sel = 0;
 function inputOf(s, forJson) {
   if (s.kind === 'portrait') return { baked: `data/${s.portrait}` };
   if (s.kind === 'svg') return s.svgFile ? { svg: s.svgFile.text } : { svg: `assets/${s.svgSample}.svg` };
-  if (s.kind === 'png') return s.png ? { png: forJson ? s.png.dataUrl : s.png.url } : null;
+  if (s.kind === 'png') return s.png ? { png: forJson ? s.png.dataUrl : s.png.url, trace: s.trace || 'auto' } : null;
   if (s.kind === 'text') { if (!s.text.trim()) return null;
     const font = s.font === 'custom' && s.fontFile ? (forJson ? s.fontFile.dataUrl : s.fontFile.url) : FONTS[s.font] || FONTS.plex;
     return { text: s.text, font }; }
@@ -199,6 +215,7 @@ function buildSpec({ forJson = false, alpha = false } = {}) {
     if (din + dout > s.duration) { const f = s.duration / (din + dout); if (tin) tin.dur = +(din * f).toFixed(3); if (tout) tout.dur = +(dout * f - 1e-3).toFixed(3); warn.push(`shot ${LETTER(k)}: transitions shortened to fit`); }
     const o = { input, duration: +s.duration, fit: +s.fit, fx, fxAmount: D.fxAmount, fxSpeed: D.fxSpeed };
     if (tin) o.in = tin; if (tout) o.out = tout; if (s.preset) o.look = { preset: s.preset };
+    if (s.cam && s.cam !== 'static' && CAMS[s.cam]) o.camera = CAMS[s.cam].f(+s.camAmt || 1);
     return o;
   });
   const look = { ...D.look }; delete look.bg;
@@ -382,13 +399,14 @@ function renderShots() {
   ed.append(h('div', { class: 'sec' }, `Shot ${LETTER(sel)} · input`));
   ed.append(seg([['portrait', 'Portrait'], ['svg', 'SVG'], ['png', 'PNG'], ['text', 'Text']], s.kind, (v) => edit(() => { s.kind = v; })));
   const g = h('div', { class: 'group' });
-  if (s.kind === 'portrait') g.append(row('Portrait', seg([['boy', 'Boy'], ['girl', 'Girl']], s.portrait, (v) => edit(() => { s.portrait = v; }))));
+  if (s.kind === 'portrait') g.append(row('Portrait', seg([['boy', 'Boy'], ['girl', 'Girl'], ...(['boy', 'girl'].includes(s.portrait) ? [] : [[s.portrait, s.portrait]])], s.portrait, (v) => edit(() => { s.portrait = v; }))));
   if (s.kind === 'svg') {
     g.append(row('Sample', seg(SAMPLES.map((n) => [n, n]), s.svgFile ? '' : s.svgSample, (v) => edit(() => { s.svgSample = v; s.svgFile = null; }))));
     g.append(h('button', { class: 'btn', onclick: () => openFile('.svg,image/svg+xml', (f) => useFile(f, sel)) }, s.svgFile ? `✓ ${s.svgFile.name} — open another…` : 'Open .svg file…'));
   }
   if (s.kind === 'png') g.append(h('button', { class: 'btn', onclick: () => openFile('image/*', (f) => useFile(f, sel)) }, s.png ? `✓ ${s.png.name} — open another…` : 'Open PNG / image…'),
-    h('div', { class: 'note' }, 'Icons on transparent or flat backgrounds trace best.'));
+    row('Trace as', seg([['auto', 'Auto'], ['photo', 'Photo'], ['icon', 'Icon']], s.trace || 'auto', (v) => edit(() => { s.trace = v; }))),
+    h('div', { class: 'note' }, 'Photo: any picture becomes a flow-line engraving. Icon: logos on transparent or flat backgrounds.'));
   if (s.kind === 'text') {
     g.append(h('textarea', { dir: 'auto', value: s.text, oninput: (e) => edit(() => { s.text = e.target.value; }, { rebuild: false, ms: 350 }) }));
     const fonts = [['plex', 'Plex Arabic'], ['inter', 'Inter']]; if (s.fontFile) fonts.push(['custom', s.fontFile.name.slice(0, 14)]);
@@ -414,6 +432,10 @@ function renderShots() {
     }
     ed.append(gg);
   }
+  ed.append(h('div', { class: 'sec' }, 'Camera move'));
+  ed.append(h('div', { class: 'seg' }, Object.entries(CAMS).map(([k, c]) => h('button', { class: (s.cam || 'static') === k ? 'on' : '', onclick: () => edit(() => { s.cam = k; }) }, c.label))));
+  ed.append(row('Strength', ...range(0.2, 2, 0.05, s.camAmt ?? 1, (v) => edit(() => { s.camAmt = v; }, { rebuild: false, ms: 120 }))));
+  ed.append(h('button', { class: 'btn', title: 'same camera move on every shot', onclick: () => edit(() => { D.shots.forEach((x) => { x.cam = s.cam; x.camAmt = s.camAmt; }); }) }, 'Use on all shots'));
   ed.append(h('div', { class: 'sec' }, 'Look'));
   ed.append(row('Preset', select(['', ...Object.keys(PRESETS)], s.preset, (v) => edit(() => { s.preset = v; }, { rebuild: false }))));
   ed.lastChild.querySelector('option').textContent = '(scene look)';
@@ -440,7 +462,7 @@ async function useFile(file, k) {
   if (k == null) { D.shots.splice(sel + 1, 0, newShot({ in: trDefaults('in', 'morph'), fit: 0.7 })); k = ++sel; }
   const s = D.shots[k];
   if (kind === 'svg') Object.assign(s, { kind: 'svg', svgFile: { name: file.name, text: await file.text() } });
-  if (kind === 'png') Object.assign(s, { kind: 'png', png: { name: file.name, url: URL.createObjectURL(file), dataUrl: await dataUrl(file) } });
+  if (kind === 'png') { Object.assign(s, { kind: 'png', png: { name: file.name, url: URL.createObjectURL(file), dataUrl: await dataUrl(file) } }); if (s.fit < 0.85) s.fit = 0.92; }   // pictures fill the frame; the icon-sized fit would leave them small
   if (kind === 'font') Object.assign(s, { kind: 'text', font: 'custom', fontFile: { name: file.name, url: URL.createObjectURL(file), dataUrl: await dataUrl(file) } });
   sel = k; renderShots(); sync();
 }
@@ -464,7 +486,7 @@ function importScene(sp) {
   D.shots = sp.shots.map((s) => { const i = s.input, o = newShot({ duration: s.duration, fit: s.fit ?? 0.8, in: tr(s.in, 'in'), out: tr(s.out, 'out'), preset: s.look?.preset || '' });
     if (i.baked || i.portrait) Object.assign(o, { kind: 'portrait', portrait: /girl/.test(i.baked || i.portrait) ? 'girl' : 'boy' });
     else if (i.svg) { const m = /([a-z]+)\.svg$/.exec(i.svg); if (m && SAMPLES.includes(m[1])) Object.assign(o, { kind: 'svg', svgSample: m[1] }); else Object.assign(o, { kind: 'svg', svgFile: { name: 'scene.svg', text: i.svg } }); }
-    else if (i.png) Object.assign(o, { kind: 'png', png: { name: 'image', url: i.png, dataUrl: i.png } });
+    else if (i.png) Object.assign(o, { kind: 'png', png: { name: 'image', url: i.png, dataUrl: i.png }, trace: i.trace || 'auto' });
     else Object.assign(o, { kind: 'text', text: String(i.text ?? ''), font: /Inter/.test(i.font || '') ? 'inter' : /^data:/.test(i.font || '') ? 'custom' : 'plex', fontFile: /^data:/.test(i.font || '') ? { name: 'font', url: i.font, dataUrl: i.font } : null });
     return o; });
   sel = 0; paintLook(); renderShots(); seek(0); sync();
