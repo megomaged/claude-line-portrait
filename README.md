@@ -24,6 +24,7 @@
   - assemble / disperse as dust, shards, wind or a vortex;
   - **morph A → B** between any two inputs (icon → text → face);
   - wipe, light sweep, glitch cut, logo sting.
+- **10 camera moves per shot:** push in, pull out, face push, crash zoom, pan, tilt, orbit, dutch roll, rise reveal and float, with a strength control.
 - **Proper eases and staggers.**
 - **Editor-ready output.**
   - Transparent ProRes 4444 `.mov`, VP9 alpha `.webm` and PNG sequences, plus MP4 and GIF.
@@ -58,11 +59,13 @@ With Claude Code, drop this folder into your skills and ask, for example:
 
 Claude follows [SKILL.md](SKILL.md): the scene format, every transition and the output rules.
 
-## Portraits (the v1 pipeline, unchanged)
+## Photos of people: always this pipeline
 | 1 · Photo | 2 · Cinematic portrait | 3 · Line art | 4 · Drawn by code |
 |---|---|---|---|
 | <img src="gallery/step0_photo.jpg" width="160"> | <img src="gallery/step1_cinematic.jpg" width="160"> | <img src="gallery/step2_lineart.jpg" width="160"> | <img src="gallery/step3_code.jpg" width="160"> |
 | any picture | any image model + [prompt 1](prompts/01_cinematic_portrait.md) | same model + [prompt 2](prompts/02_line_art.md) | `flowlines.py` → scene / studio |
+
+The image model draws the person as line art first. That is what makes the eyes, smile and hair read. The studio's PNG button can also trace a raw photo directly: it separates the person from the background with a local MediaPipe model. That direct trace is only a quick preview.
 
 ## How it works
 - Every input becomes the same thing: polylines with a brightness and width per point, plus particles.
@@ -81,3 +84,4 @@ Claude follows [SKILL.md](SKILL.md): the scene format, every transition and the 
   - three.js (MIT) and harfbuzzjs (MIT; HarfBuzz is "Old MIT").
   - mp4-muxer and webm-muxer (MIT).
   - IBM Plex Sans Arabic and Inter (SIL OFL 1.1).
+  - MediaPipe Tasks Vision and the selfie_multiclass segmentation model (Apache-2.0).

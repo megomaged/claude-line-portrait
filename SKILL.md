@@ -8,6 +8,22 @@ description: Line + particle motion engine. Turns portraits, photos of objects/p
 
 Anything goes in: a face, a product photo, an SVG logo, a PNG icon, a line of text in any font. It comes out as light lines and particles that draw, assemble, explode, blow away, glitch and morph into each other. Output is a frame-exact video, with or without a transparent background.
 
+## The method for any photo of a person (always use this)
+Code alone only sees light and shadow. It cannot tell an eye from a crease, so a raw photo traced directly reads weakly, even with segmentation. Quality comes from an image model drawing the person as line art first. When a user gives you a photo of a person, ALWAYS:
+1. **Cinematic portrait:** any image model with the photo as a reference image, using `prompts/01_cinematic_portrait.md`. Keep the face, hair and clothes; name what must survive, such as "the beard", "the smile" or "the white-line shirt pattern".
+2. **Line art:** the same model with the step-1 image as the reference, using `prompts/02_line_art.md`.
+3. **Lines → code:** `python3 scripts/flowlines.py lineart.png studio/data/<name>`
+4. **Open:** `cd studio && node serve.mjs 8097`, then `http://127.0.0.1:8097/?d=<name>`. The portrait is the last shot, and the panel's Portrait row lists it.
+
+Look at the step-1 and step-2 images before going on. Regenerate if the face drifts.
+The studio's PNG button ("Trace as: Photo") does a direct trace with person segmentation. That is a quick preview only, not the deliverable.
+
+## Camera moves (studio panel → Camera move, per shot)
+There are 10 ready moves: **Push in**, **Pull out**, **Face push**, **Crash zoom**, **Pan →**, **Tilt up**, **Orbit**, **Dutch roll**, **Rise reveal** and **Float**.
+- **Strength** scales a move from 0.2× to 2×.
+- **Use on all shots** applies the same move to the whole scene.
+- Each move runs over the whole shot. It is written into the scene as the shot's `camera` key (`zoom`, `pan`, `roll`, `yaw`, `pitch` and `ease`, given as `[from, to]` pairs), so headless renders match the page.
+
 ## Four input types
 | Input | Scene key | How it becomes lines |
 |---|---|---|
